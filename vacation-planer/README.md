@@ -106,3 +106,69 @@ Wenn ihr später auf JSON umstellt, schreibt ihr einfach eine `JsonStorage.php`,
 * **Sicherheit:** Passwort-Hashing (`password_hash`) und Session-Checks auf jeder Seite.
 
 Das ist der komplette Bauplan. Ihr müsst jetzt "nur noch" den PHP-Code in die entsprechenden Dateien schreiben. Viel Erfolg bei eurem HTL-Projekt!
+
+Hier ist die detaillierte Aufstellung, was **genau** in jede Datei und jeden Ordner kommt. Das ist dein technisches Drehbuch für die Umsetzung in PHP.
+
+---
+
+### 📂 /app (Das Gehirn)
+Hier liegt der PHP-Code, den der User niemals direkt sieht.
+
+* **`/Core/DatabaseInterface.php`**: Hier definierst du nur die Regeln (z. B. `public function checkLogin($mnr, $pw);`). Das ist der Beweis für den Lehrer, dass euer Backend "austauschbar" ist.
+* **`/Core/MariaDBStorage.php`**: Hier schreibst du die echten SQL-Befehle (PDO), um Daten aus MariaDB zu holen. Diese Klasse "gehorcht" dem Interface.
+* **`/Models/User.php`**: Eine Klasse, die einen Mitarbeiter repräsentiert (Eigenschaften wie Name, Urlaubstage).
+* **`/Models/VacationRequest.php`**: Eine Klasse für einen Urlaubsantrag (Start, Ende, Status).
+* **`/Controllers/AuthController.php`**: Enthält die Logik für Login und Logout. Er prüft das Passwort und startet die `$_SESSION`.
+* **`/Controllers/VacationController.php`**: Berechnet, ob ein Mitarbeiter noch genug Urlaubstage hat, speichert neue Anträge und erlaubt dem CEO das Genehmigen.
+
+---
+
+### 📂 /public (Die Haustür)
+Das ist der einzige Ordner, den der Webserver nach außen zeigt.
+
+* **`index.php`**: Der "Front Controller". Jede Anfrage landet hier. Sie lädt die Autoload-Funktionen und entscheidet: "User will Login sehen -> lade AuthController".
+* **`/css/style.css`**: Hier kommt euer Design rein (Farben, Layout, Abstände).
+* **`/js/main.js`**: (Optional) Falls ihr kleine Effekte wollt oder den Kalender interaktiv macht.
+
+---
+
+### 📂 /views (Das Gesicht)
+Hier liegt reines HTML mit ganz wenig PHP (nur für `echo`).
+
+* **`/auth/login.php`**: Das Formular für MNr und Passwort.
+* **`/employee/dashboard.php`**: Die Seite, auf der der Mitarbeiter seine eigenen Anträge sieht und das Formular für neue Anträge findet.
+* **`/admin/dashboard.php`**: Die CEO-Ansicht mit der Tabelle oder dem Kalender aller Mitarbeiter-Anträge.
+* **`/admin/calendar.php`**: Die visuelle Übersicht (eventuell mit einer Tabelle gelöst).
+
+---
+
+### 📂 /config (Die Geheimnisse)
+* **`db.php`**: Hier stehen `$db_host`, `$db_name`, `$db_user` und `$db_pass`. 
+    * **WICHTIG:** Diese Datei darf **nicht** in Git hochgeladen werden (Sicherheitsrisiko!).
+
+---
+
+### 📂 /database (Das Fundament)
+* **`schema.sql`**: Hier kopierst du alle `CREATE TABLE` Befehle hinein. So kann jeder aus deinem Team die Datenbank mit einem Klick bei sich lokal erstellen.
+
+---
+
+### 📂 /vendor (Die Werkzeuge)
+* Dieser Ordner wird von **Composer** automatisch erstellt. Hier landet zum Beispiel der `PHPMailer` für die E-Mail-Benachrichtigungen. Ihr rührt diesen Ordner händisch nicht an.
+
+---
+
+### 📄 Dateien im Hauptverzeichnis (Root)
+* **`.gitignore`**: Hier schreibst du `/vendor/` und `config/db.php` rein. Git ignoriert diese dann beim Hochladen.
+* **`README.md`**: Eure Projektdokumentation (Name: **ApexTime**, Anleitung zur Installation, Teammitglieder).
+* **`composer.json`**: Eine kleine Datei, die sagt: "Ich brauche PHPMailer".
+
+---
+
+### Zusammenfassung der Logik-Kette:
+1.  User gibt Daten in **`/views/auth/login.php`** ein.
+2.  Daten gehen an den **`AuthController.php`**.
+3.  Controller nutzt **`MariaDBStorage.php`**, um User zu finden.
+4.  Wenn okay, schreibt der Controller die Rolle in die **Session** und schickt den User zum **Dashboard**.
+
+Mit dieser Struktur erfüllt ihr alle Anforderungen: **MVC**, **OOP**, **Austauschbarkeit** und **Sauberkeit**. Viel Erfolg beim Coden!
