@@ -35,4 +35,16 @@ class Request {
         $stmt = $db->prepare("UPDATE vacation_requests SET status = ?, approver_id = ?, admin_comment = ?, decided_at = CURRENT_TIMESTAMP WHERE id = ?");
         return $stmt->execute([$status, $approverId, $comment, $requestId]);
     }
+
+    public static function withdrawRequest($id, $userId) {
+        $db = Database::getConnection();
+        $stmt = $db->prepare("DELETE FROM vacation_requests WHERE id = ? AND user_id = ? AND status = 'pending'");
+        return $stmt->execute([$id, $userId]);
+    }
+
+    public static function requestStorno($id, $userId) {
+        $db = Database::getConnection();
+        $stmt = $db->prepare("UPDATE vacation_requests SET status = 'storno_requested' WHERE id = ? AND user_id = ? AND status = 'approved'");
+        return $stmt->execute([$id, $userId]);
+    }
 }

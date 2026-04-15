@@ -53,7 +53,10 @@ class Database {
             password_hash VARCHAR NOT NULL,
             password_salt VARCHAR NOT NULL,
             last_login TIMESTAMP,
-            FOREIGN KEY(user_id) REFERENCES users(id)
+            must_change_password BOOLEAN DEFAULT 0,
+            reset_token VARCHAR,
+            reset_expires_at TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS vacation_requests (
@@ -63,12 +66,12 @@ class Database {
             start_date DATE NOT NULL,
             end_date DATE NOT NULL,
             net_days INTEGER NOT NULL,
-            status VARCHAR NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
+            status VARCHAR NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected', 'storno_requested', 'cancelled')),
             admin_comment TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             decided_at TIMESTAMP,
-            FOREIGN KEY(user_id) REFERENCES users(id),
-            FOREIGN KEY(approver_id) REFERENCES users(id)
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(approver_id) REFERENCES users(id) ON DELETE SET NULL
         );
         ";
         $db->exec($schema);
