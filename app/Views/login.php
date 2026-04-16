@@ -45,7 +45,7 @@ $isForgot = isset($_GET['forgot']);
         <div class="max-w-md w-full space-y-8 bg-white p-10 rounded-3xl shadow-xl shadow-lime-900/5 relative z-10 border border-yellow-100/50">
             <div class="text-center">
                 <div class="mx-auto w-16 h-16 bg-gradient-to-tr from-lime-400 to-yellow-300 rounded-2xl flex justify-center items-center mb-6 shadow-lg shadow-lime-400/30">
-                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M13 8c0-2.76-2.46-5-5.5-5S2 5.24 2 8h2l1-1 1 1h4"></path><path d="M13 7.14A5.82 5.82 0 0 1 16.5 6c3.04 0 5.5 2.24 5.5 5h-3l-1-1-1 1h-3"></path><path d="M5.89 9.71c-1.15 1.47-1.89 3.17-1.89 5.29A7.1 7.1 0 0 0 7 20"></path><path d="M14.11 9.71c1.15 1.47 1.89 3.17 1.89 5.29A7.1 7.1 0 0 1 13 20"></path><path d="M10.8 11c.5 0 .9.4.9 1v9"></path><path d="M8 22h4"></path></svg>
                 </div>
                 <h2 class="text-3xl font-bold text-emerald-900 tracking-tight">ZenTime</h2>
                 <?php if ($isReset): ?>
