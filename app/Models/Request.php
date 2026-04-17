@@ -52,9 +52,28 @@ class Request {
     }
 
     public static function decide($requestId, $approverId, $status, $comment = null) {
+        if ($status === 'approved') {
+            $request = self::getById($requestId);
+            if ($request && !self::passesMinimumCoverage((int) $request['user_id'], $request['start_date'], $request['end_date'], (int) $request['id'])) {
+                return false;
+            }
+        }
         $db = Database::getConnection();
         $stmt = $db->prepare("UPDATE vacation_requests SET status = ?, approver_id = ?, admin_comment = ?, decided_at = CURRENT_TIMESTAMP WHERE id = ?");
         return $stmt->execute([$status, $approverId, $comment, $requestId]);
+    }
+
+    public static function getById($requestId) {
+        $db = Database::getConnection();
+        $stmt = $db->prepare("
+            SELECT r.*, u.firstname, u.lastname, u.email
+            FROM vacation_requests r
+            JOIN users u ON u.id = r.user_id
+            WHERE r.id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$requestId]);
+        return $stmt->fetch();
     }
 
     public static function withdrawRequest($id, $userId) {
@@ -123,5 +142,103 @@ class Request {
             ':end_date' => $endDate
         ]);
         return (bool) $stmt->fetchColumn();
+    }
+
+    public static function calculateUserVacationStats($userId) {
+        $db = Database::getConnection();
+        $entitlementStmt = $db->prepare("SELECT vacation_entitlement_days FROM users WHERE id = ?");
+        $entitlementStmt->execute([$userId]);
+        $entitlement = (int) ($entitlementStmt->fetchColumn() ?: 0);
+
+        $approvedStmt = $db->prepare("SELECT COALESCE(SUM(net_days), 0) FROM vacation_requests WHERE user_id = ? AND status = 'approved'");
+        $approvedStmt->execute([$userId]);
+        $approvedDays = (int) $approvedStmt->fetchColumn();
+
+        $plannedStmt = $db->prepare("SELECT COALESCE(SUM(net_days), 0) FROM vacation_requests WHERE user_id = ? AND status IN ('pending', 'storno_requested')");
+        $plannedStmt->execute([$userId]);
+        $plannedDays = (int) $plannedStmt->fetchColumn();
+
+        return [
+            'entitlement' => $entitlement,
+            'approved' => $approvedDays,
+            'planned' => $plannedDays,
+            'remaining' => max(0, $entitlement - $approvedDays - $plannedDays)
+        ];
+    }
+
+    public static function getCapacitySummary($startDate, $endDate) {
+        $db = Database::getConnection();
+        $employeesTotalStmt = $db->query("SELECT COUNT(*) FROM users WHERE role = 'Employee'");
+        $employeesTotal = (int) $employeesTotalStmt->fetchColumn();
+
+        $absentStmt = $db->prepare("
+            SELECT COUNT(DISTINCT user_id)
+            FROM vacation_requests
+            WHERE status = 'approved'
+              AND start_date <= :end_date
+              AND end_date >= :start_date
+        ");
+        $absentStmt->execute([
+            ':start_date' => $startDate,
+            ':end_date' => $endDate
+        ]);
+        $absentApproved = (int) $absentStmt->fetchColumn();
+
+        return [
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'employees_total' => $employeesTotal,
+            'absent_approved' => $absentApproved,
+            'available' => max(0, $employeesTotal - $absentApproved)
+        ];
+    }
+
+    public static function passesMinimumCoverage($requestUserId, $startDate, $endDate, $ignoreRequestId = null) {
+        $db = Database::getConnection();
+        $minimumStmt = $db->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'min_staff_available' LIMIT 1");
+        $minimumStmt->execute();
+        $minimumAvailable = (int) ($minimumStmt->fetchColumn() ?: 1);
+
+        $employeesTotalStmt = $db->query("SELECT COUNT(*) FROM users WHERE role = 'Employee'");
+        $employeesTotal = (int) $employeesTotalStmt->fetchColumn();
+
+        $sql = "
+            SELECT COUNT(DISTINCT user_id)
+            FROM vacation_requests
+            WHERE status = 'approved'
+              AND start_date <= :end_date
+              AND end_date >= :start_date
+        ";
+        $params = [
+            ':start_date' => $startDate,
+            ':end_date' => $endDate
+        ];
+        if ($ignoreRequestId !== null) {
+            $sql .= " AND id != :ignore_request_id";
+            $params[':ignore_request_id'] = $ignoreRequestId;
+        }
+        $absentStmt = $db->prepare($sql);
+        $absentStmt->execute($params);
+        $absentApproved = (int) $absentStmt->fetchColumn();
+
+        $alreadyAbsentStmt = $db->prepare("
+            SELECT 1
+            FROM vacation_requests
+            WHERE user_id = :user_id
+              AND status = 'approved'
+              AND start_date <= :end_date
+              AND end_date >= :start_date
+            LIMIT 1
+        ");
+        $alreadyAbsentStmt->execute([
+            ':user_id' => $requestUserId,
+            ':start_date' => $startDate,
+            ':end_date' => $endDate
+        ]);
+        $isAlreadyAbsentInWindow = (bool) $alreadyAbsentStmt->fetchColumn();
+
+        $newAbsentCount = $absentApproved + ($isAlreadyAbsentInWindow ? 0 : 1);
+        $availableAfterApproval = $employeesTotal - $newAbsentCount;
+        return $availableAfterApproval >= $minimumAvailable;
     }
 }

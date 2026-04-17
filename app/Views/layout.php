@@ -18,7 +18,18 @@ if (!isset($currentRole)) exit;
         .fc-toolbar-title { font-weight: 700 !important; color: #064e3b; font-family: 'Outfit', sans-serif;}
         .fc-button-primary { background-color: #a3e635 !important; border-color: #84cc16 !important; color: #064e3b !important; font-weight: bold !important; text-transform: capitalize; }
         .fc-button-primary:hover { background-color: #84cc16 !important; }
-        .fc-day-today { background-color: #fefce8 !important; }
+        .fc-day-today { background-color: transparent !important; }
+        .fc-day-today .fc-daygrid-day-number {
+            background-color: #dcfce7;
+            border: 1px solid #86efac;
+            border-radius: 9999px;
+            width: 1.75rem;
+            height: 1.75rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
         .fc-col-header-cell-cushion { color: #064e3b !important; }
         .fc-daygrid-day-number { color: #064e3b !important; }
         .fc-event { border: none !important; border-radius: 4px; padding: 2px 4px; font-weight: 600; font-size: 0.75rem; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;}
@@ -73,6 +84,11 @@ if (!isset($currentRole)) exit;
                     <span class="text-sm font-bold text-emerald-900 leading-none mt-0.5"><?= htmlspecialchars($currentUser['firstname']) ?></span>
                 </div>
             </div>
+
+            <div class="hidden md:flex items-center gap-2 bg-white border border-yellow-200 rounded-full px-3 py-1.5 text-sm">
+                <span class="font-semibold text-emerald-700">Inbox</span>
+                <span class="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-lime-400 text-emerald-900 font-bold text-xs"><?= (int)($notificationUnreadCount ?? 0) ?></span>
+            </div>
             
             <!-- Language Toggle -->
             <div class="flex gap-2 bg-yellow-50 px-3 py-1.5 rounded-full border border-yellow-200 text-sm">
@@ -110,6 +126,7 @@ if (!isset($currentRole)) exit;
                     elseif ($_GET['error'] === 'request_conflict') echo (($_SESSION['lang'] ?? 'en') === 'de' ? 'Dieser Zeitraum überschneidet sich mit einem bestehenden Urlaubsantrag.' : 'This range overlaps with an existing vacation request.');
                     elseif ($_GET['error'] === 'blocked_exists') echo (($_SESSION['lang'] ?? 'en') === 'de' ? 'Dieser Sperrbereich existiert bereits oder überschneidet einen bestehenden.' : 'This blocked period already exists or overlaps an existing blocked period.');
                     elseif ($_GET['error'] === 'past_date') echo (($_SESSION['lang'] ?? 'en') === 'de' ? 'Urlaub kann nicht in der Vergangenheit beantragt werden.' : 'Vacation cannot be requested for past dates.');
+                    elseif ($_GET['error'] === 'coverage_conflict') echo (($_SESSION['lang'] ?? 'en') === 'de' ? 'Genehmigung nicht möglich: Mindestbesetzung würde unterschritten.' : 'Approval failed: minimum staffing would be violated.');
                     else echo "An error occurred.";
                 ?>
             </div>
@@ -125,6 +142,24 @@ if (!isset($currentRole)) exit;
                         <p class="text-sm text-emerald-700 mb-5">
                             <?= (($_SESSION['lang'] ?? 'en') === 'de') ? 'Wähle direkt im Kalender einen Zeitraum oder setze die Daten manuell.' : 'Select a range directly in the calendar or set the dates manually.' ?>
                         </p>
+                        <div class="grid grid-cols-2 gap-2 mb-5">
+                            <div class="bg-lime-50 border border-lime-200 rounded-xl p-3">
+                                <div class="text-[10px] uppercase font-bold text-emerald-700">Gesamt</div>
+                                <div class="font-bold text-xl text-emerald-900"><?= (int)($userVacationStats['entitlement'] ?? 0) ?></div>
+                            </div>
+                            <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+                                <div class="text-[10px] uppercase font-bold text-emerald-700">Geplant</div>
+                                <div class="font-bold text-xl text-emerald-900"><?= (int)($userVacationStats['planned'] ?? 0) ?></div>
+                            </div>
+                            <div class="bg-white border border-emerald-200 rounded-xl p-3">
+                                <div class="text-[10px] uppercase font-bold text-emerald-700">Genommen</div>
+                                <div class="font-bold text-xl text-emerald-900"><?= (int)($userVacationStats['approved'] ?? 0) ?></div>
+                            </div>
+                            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                                <div class="text-[10px] uppercase font-bold text-emerald-700">Rest</div>
+                                <div class="font-bold text-xl text-emerald-900"><?= (int)($userVacationStats['remaining'] ?? 0) ?></div>
+                            </div>
+                        </div>
                         <form id="employee-request-form" action="/?action=create_request" method="POST" x-data="vacationForm()" class="space-y-5">
                             <div>
                                 <label class="block text-sm font-semibold text-emerald-800 mb-1.5"><?= I18n::get('emp.start_date') ?></label>
@@ -216,6 +251,51 @@ if (!isset($currentRole)) exit;
                         </table>
                     </div>
                 </div>
+
+                <div class="bg-white rounded-3xl p-6 shadow-xl shadow-lime-900/5 border border-lime-100">
+                    <h3 class="text-xl font-bold text-emerald-900 mb-4">Kommentarverlauf</h3>
+                    <div class="space-y-4">
+                        <?php foreach ($requests as $req): ?>
+                            <div class="border border-yellow-100 rounded-xl p-4">
+                                <div class="text-sm font-bold text-emerald-900 mb-2">
+                                    Antrag #<?= (int)$req['id'] ?> | <?= htmlspecialchars($req['start_date']) ?> - <?= htmlspecialchars($req['end_date']) ?>
+                                </div>
+                                <div class="space-y-2 mb-3">
+                                    <?php foreach (($requestCommentsById[$req['id']] ?? []) as $c): ?>
+                                        <div class="text-xs bg-yellow-50 border border-yellow-100 rounded-lg p-2">
+                                            <span class="font-bold"><?= htmlspecialchars($c['firstname'] . ' ' . $c['lastname']) ?>:</span>
+                                            <?= htmlspecialchars($c['comment']) ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                    <?php if (empty($requestCommentsById[$req['id']] ?? [])): ?>
+                                        <div class="text-xs text-emerald-600">Noch keine Kommentare.</div>
+                                    <?php endif; ?>
+                                </div>
+                                <form method="POST" action="/?action=add_request_comment" class="flex gap-2">
+                                    <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
+                                    <input type="text" name="comment" required class="flex-1 bg-white border border-yellow-200 rounded-lg px-3 py-2 text-xs text-emerald-900 outline-none" placeholder="Kommentar hinzufügen...">
+                                    <button type="submit" class="bg-lime-400 text-emerald-900 px-3 py-2 rounded-lg text-xs font-bold">Senden</button>
+                                </form>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl p-6 shadow-xl shadow-lime-900/5 border border-lime-100">
+                <h3 class="text-xl font-bold text-emerald-900 mb-4">Benachrichtigungen</h3>
+                <div class="space-y-2 max-h-64 overflow-auto pr-1">
+                    <?php foreach (($notificationList ?? []) as $note): ?>
+                        <div class="p-3 rounded-xl border <?= (int)$note['is_read'] === 1 ? 'border-yellow-100 bg-white' : 'border-lime-200 bg-lime-50' ?>">
+                            <div class="font-semibold text-sm text-emerald-900"><?= htmlspecialchars($note['title']) ?></div>
+                            <div class="text-xs text-emerald-700"><?= htmlspecialchars($note['message']) ?></div>
+                            <div class="text-[10px] text-emerald-500 mt-1"><?= htmlspecialchars($note['created_at']) ?></div>
+                        </div>
+                    <?php endforeach; ?>
+                    <?php if (empty($notificationList)): ?>
+                        <div class="text-sm text-emerald-600">Keine Benachrichtigungen.</div>
+                    <?php endif; ?>
+                </div>
             </div>
 
         <?php elseif (in_array($currentRole, ['CEO', 'Admin'], true)): ?>
@@ -241,7 +321,36 @@ if (!isset($currentRole)) exit;
                             <p class="text-sm text-emerald-700 mb-4">Im Kalender kannst du gesperrte Zeitraeume markieren. Diese Tage sind fuer Mitarbeiter nicht buchbar.</p>
                             <div id="ceo-calendar"></div>
                         </div>
-                        <div class="bg-white p-6 rounded-3xl shadow-xl border border-lime-100">
+                        <div class="space-y-4 calendar-side-panel">
+                            <div id="calendar-info-panel" class="bg-white p-6 rounded-3xl shadow-xl border border-lime-100">
+                                <h3 class="text-xl font-bold text-emerald-900 mb-4">Kalender Infos</h3>
+                            <div id="calendar-info-content" class="hidden">
+                            <div class="grid grid-cols-3 gap-2 mb-4">
+                                <div class="rounded-xl border border-lime-200 bg-lime-50 p-2">
+                                    <div class="text-[10px] uppercase text-emerald-700 font-bold">Mitarbeiter</div>
+                                    <div class="text-lg font-bold text-emerald-900"><?= (int)($capacitySummary['employees_total'] ?? 0) ?></div>
+                                </div>
+                                <div class="rounded-xl border border-yellow-200 bg-yellow-50 p-2">
+                                    <div class="text-[10px] uppercase text-emerald-700 font-bold">Abwesend</div>
+                                    <div class="text-lg font-bold text-emerald-900"><?= (int)($capacitySummary['absent_approved'] ?? 0) ?></div>
+                                </div>
+                                <div class="rounded-xl border border-emerald-200 bg-white p-2">
+                                    <div class="text-[10px] uppercase text-emerald-700 font-bold">Verfuegbar</div>
+                                    <div class="text-lg font-bold text-emerald-900"><?= (int)($capacitySummary['available'] ?? 0) ?></div>
+                                </div>
+                            </div>
+                            <div id="calendar-info-meta" class="text-xs text-emerald-700 bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4 hidden"></div>
+                            <form method="POST" action="/?action=update_min_staff" class="mb-4 flex items-end gap-2">
+                                <div class="flex-1">
+                                    <label class="block text-xs font-bold text-emerald-700 mb-1">Mindestbesetzung (global)</label>
+                                    <input type="number" min="0" name="min_staff_available" value="<?= (int)($minStaffAvailable ?? 1) ?>" class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2 text-emerald-900 outline-none">
+                                </div>
+                                <button type="submit" class="bg-lime-400 hover:bg-lime-500 text-emerald-900 font-bold px-3 py-2 rounded-xl">Speichern</button>
+                            </form>
+                            </div>
+                            </div>
+
+                            <div class="bg-white p-6 rounded-3xl shadow-xl border border-lime-100">
                             <h3 class="text-xl font-bold text-emerald-900 mb-4">Kalender Actions</h3>
                             <div id="calendar-action-empty" class="hidden"></div>
                             <form id="calendar-action-block-form" method="POST" action="/?action=create_blocked_period" class="space-y-3 hidden">
@@ -315,6 +424,7 @@ if (!isset($currentRole)) exit;
                                     </div>
                                 </form>
                             </div>
+                            </div>
                         </div>
                     </div>
 
@@ -373,6 +483,21 @@ if (!isset($currentRole)) exit;
                                         <?php endif; ?>
                                     </div>
                                 </form>
+
+                                <div class="mt-4 border-t border-yellow-100 pt-3 space-y-2">
+                                    <div class="text-xs uppercase tracking-wider font-bold text-emerald-700">Kommentare</div>
+                                    <?php foreach (($requestCommentsById[$req['id']] ?? []) as $c): ?>
+                                        <div class="text-xs bg-yellow-50 border border-yellow-100 rounded-lg p-2">
+                                            <span class="font-bold"><?= htmlspecialchars($c['firstname'] . ' ' . $c['lastname']) ?>:</span>
+                                            <?= htmlspecialchars($c['comment']) ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                    <form method="POST" action="/?action=add_request_comment" class="flex gap-2">
+                                        <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
+                                        <input type="text" name="comment" required class="flex-1 bg-white border border-yellow-200 rounded-lg px-2 py-1.5 text-xs text-emerald-900 outline-none" placeholder="Kommentar hinzufügen...">
+                                        <button type="submit" class="bg-lime-400 text-emerald-900 px-2 py-1.5 rounded-lg text-xs font-bold">Senden</button>
+                                    </form>
+                                </div>
                             </div>
                         <?php endforeach; ?>
                         
@@ -385,9 +510,20 @@ if (!isset($currentRole)) exit;
                         <?php endif; ?>
                             </div>
                         </div>
-                        <div class="bg-white p-6 rounded-3xl shadow-xl border border-lime-100 space-y-4">
-                            <h3 class="text-xl font-bold text-emerald-900">Hinweis</h3>
-                            <p class="text-sm text-emerald-700">Das Actions-Menue zeigt Inhalte nur bei aktiver Auswahl im Kalender.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-3xl shadow-xl border border-lime-100">
+                        <h3 class="text-xl font-bold text-emerald-900 mb-4">Audit Log</h3>
+                        <div class="space-y-2 max-h-64 overflow-auto pr-1">
+                            <?php foreach (($recentAuditLogs ?? []) as $log): ?>
+                                <div class="p-3 rounded-xl border border-yellow-100 bg-yellow-50">
+                                    <div class="text-xs font-bold text-emerald-800"><?= htmlspecialchars($log['action']) ?></div>
+                                    <div class="text-xs text-emerald-700"><?= htmlspecialchars(($log['firstname'] ?? 'System') . ' ' . ($log['lastname'] ?? '')) ?></div>
+                                    <div class="text-[10px] text-emerald-500"><?= htmlspecialchars($log['created_at']) ?></div>
+                                </div>
+                            <?php endforeach; ?>
+                            <?php if (empty($recentAuditLogs)): ?>
+                                <div class="text-sm text-emerald-600">Noch keine Audit-Eintraege.</div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -569,8 +705,17 @@ if (!isset($currentRole)) exit;
             .map((e) => ({ start: e.start, end: e.end }));
         let ceoCalendarInstance = null;
         let ceoSelectedRange = null;
+        const ceoSelectionStorageKey = 'zentime_ceo_calendar_selection';
+        let ceoProgrammaticSelect = false;
         
         document.addEventListener('DOMContentLoaded', function() {
+            function formatLocalDate(dateObj) {
+                const year = dateObj.getFullYear();
+                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const day = String(dateObj.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
             function focusRequestInOverview(requestId) {
                 if (!requestId) return;
                 const target = document.querySelector(`[data-request-id="${requestId}"]`);
@@ -587,7 +732,7 @@ if (!isset($currentRole)) exit;
 
                 const endDate = new Date(endExclusiveStr);
                 endDate.setDate(endDate.getDate() - 1);
-                const localEnd = endDate.toISOString().slice(0, 10);
+                const localEnd = formatLocalDate(endDate);
 
                 startInput.value = startStr;
                 endInput.value = localEnd;
@@ -606,7 +751,7 @@ if (!isset($currentRole)) exit;
 
                 const endDate = new Date(endExclusiveStr);
                 endDate.setDate(endDate.getDate() - 1);
-                const localEnd = endDate.toISOString().slice(0, 10);
+                const localEnd = formatLocalDate(endDate);
 
                 startInput.value = startStr;
                 endInput.value = localEnd;
@@ -638,6 +783,7 @@ if (!isset($currentRole)) exit;
             }
 
             function clearCalendarActions() {
+                document.getElementById('calendar-info-content')?.classList.add('hidden');
                 document.getElementById('calendar-action-empty')?.classList.add('hidden');
                 document.getElementById('calendar-action-block-form')?.classList.add('hidden');
                 document.getElementById('calendar-action-vacation-form')?.classList.add('hidden');
@@ -645,8 +791,68 @@ if (!isset($currentRole)) exit;
                 document.getElementById('calendar-action-event')?.classList.add('hidden');
             }
 
+            function setCalendarInfo(type, start, end, meta = '') {
+                const panel = document.getElementById('calendar-info-panel');
+                const metaEl = document.getElementById('calendar-info-meta');
+                if (!panel || !metaEl) return;
+                if (meta && meta.trim() !== '') {
+                    metaEl.textContent = `${type}: ${start} bis ${end} | ${meta}`;
+                    metaEl.classList.remove('hidden');
+                } else {
+                    metaEl.textContent = '';
+                    metaEl.classList.add('hidden');
+                }
+                document.getElementById('calendar-info-content')?.classList.remove('hidden');
+            }
+
+            function getTodayRange() {
+                const now = new Date();
+                const start = formatLocalDate(now);
+                const end = new Date(now);
+                end.setDate(end.getDate() + 1);
+                return { start, end: formatLocalDate(end) };
+            }
+
+            function loadPersistedCeoRange() {
+                try {
+                    const raw = localStorage.getItem(ceoSelectionStorageKey);
+                    if (!raw) return null;
+                    const parsed = JSON.parse(raw);
+                    if (!parsed || !parsed.start || !parsed.end) return null;
+                    return parsed;
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            function persistCeoRange(range) {
+                try {
+                    localStorage.setItem(ceoSelectionStorageKey, JSON.stringify(range));
+                } catch (e) {
+                    // ignore storage errors
+                }
+            }
+
+            function applyCeoSelection(range, syncCalendarSelection = true) {
+                if (!range || !range.start || !range.end) return;
+                ceoSelectedRange = { start: range.start, end: range.end };
+                persistCeoRange(ceoSelectedRange);
+                if (syncCalendarSelection && ceoCalendarInstance) {
+                    ceoProgrammaticSelect = true;
+                    ceoCalendarInstance.select(ceoSelectedRange.start, ceoSelectedRange.end);
+                }
+                if (hasBlockedOverlap(ceoSelectedRange.start, ceoSelectedRange.end)) {
+                    showActionUnblockSelection(ceoSelectedRange.start, ceoSelectedRange.end);
+                } else {
+                    showActionBlockedSelection(ceoSelectedRange.start, ceoSelectedRange.end);
+                }
+            }
+
             function showActionBlockedSelection(startStr, endExclusiveStr) {
                 setBlockedFormDates(startStr, endExclusiveStr);
+                const endDate = new Date(endExclusiveStr);
+                endDate.setDate(endDate.getDate() - 1);
+                setCalendarInfo('Zeitraum', startStr, formatLocalDate(endDate), 'Aktion: Sperrbereich setzen oder auf Urlaubszeit buchen wechseln.');
                 document.getElementById('calendar-action-block-form')?.classList.remove('hidden');
                 document.getElementById('calendar-action-vacation-form')?.classList.add('hidden');
                 document.getElementById('calendar-action-unblock')?.classList.add('hidden');
@@ -655,6 +861,9 @@ if (!isset($currentRole)) exit;
 
             function showActionVacationSelection(startStr, endExclusiveStr) {
                 setAdminVacationFormDates(startStr, endExclusiveStr);
+                const endDate = new Date(endExclusiveStr);
+                endDate.setDate(endDate.getDate() - 1);
+                setCalendarInfo('Zeitraum', startStr, formatLocalDate(endDate), 'Aktion: Urlaubszeit für Mitarbeiter buchen.');
                 document.getElementById('calendar-action-block-form')?.classList.add('hidden');
                 document.getElementById('calendar-action-vacation-form')?.classList.remove('hidden');
                 document.getElementById('calendar-action-unblock')?.classList.add('hidden');
@@ -676,6 +885,9 @@ if (!isset($currentRole)) exit;
                 const list = document.getElementById('calendar-action-unblock-list');
                 if (!list) return;
                 const overlaps = getBlockedOverlaps(startStr, endExclusiveStr);
+                const endDate = new Date(endExclusiveStr);
+                endDate.setDate(endDate.getDate() - 1);
+                setCalendarInfo('Zeitraum', startStr, formatLocalDate(endDate), `Aktion: ${overlaps.length} Sperrbereich(e) aufheben.`);
                 list.innerHTML = '';
                 overlaps.forEach((b) => {
                     const form = document.createElement('form');
@@ -739,6 +951,7 @@ if (!isset($currentRole)) exit;
                     <div><span class="font-semibold">Tage:</span> ${request.net_days}</div>
                     <div><span class="font-semibold">Kontakt:</span> ${request.email}</div>
                 `;
+                setCalendarInfo('Termin', request.start_date, request.end_date, `Status: ${request.status} | Mitarbeiter: ${request.firstname} ${request.lastname}`);
                 document.getElementById('calendar-action-block-form')?.classList.add('hidden');
                 document.getElementById('calendar-action-vacation-form')?.classList.add('hidden');
                 document.getElementById('calendar-action-unblock')?.classList.add('hidden');
@@ -760,7 +973,8 @@ if (!isset($currentRole)) exit;
                     height: 'auto',
                     firstDay: 1, // Start on Monday
                     eventDisplay: 'block',
-                    unselectAuto: elemId !== 'ceo-calendar',
+                    unselectAuto: false,
+                    unselectCancel: '.calendar-side-panel',
                     selectable: elemId === 'employee-calendar' || (elemId === 'ceo-calendar' && (currentRole === 'CEO' || currentRole === 'Admin')),
                     selectAllow: function(info) {
                         if (elemId !== 'employee-calendar') return true;
@@ -772,18 +986,21 @@ if (!isset($currentRole)) exit;
                             return;
                         }
                         if (elemId === 'ceo-calendar' && (currentRole === 'CEO' || currentRole === 'Admin')) {
-                            ceoSelectedRange = { start: info.startStr, end: info.endStr };
-                            if (hasBlockedOverlap(info.startStr, info.endStr)) {
-                                showActionUnblockSelection(info.startStr, info.endStr);
-                            } else {
-                                showActionBlockedSelection(info.startStr, info.endStr);
+                            if (ceoProgrammaticSelect) {
+                                ceoProgrammaticSelect = false;
+                                return;
                             }
+                            // Persist and update UI without re-triggering programmatic select recursion.
+                            applyCeoSelection({ start: info.startStr, end: info.endStr }, false);
                         }
                     },
-                    unselect: function() {
-                        if (elemId === 'ceo-calendar') {
-                            ceoSelectedRange = null;
-                            clearCalendarActions();
+                    dateClick: function(info) {
+                        if (elemId === 'ceo-calendar' && (currentRole === 'CEO' || currentRole === 'Admin')) {
+                            const start = info.dateStr;
+                            const endDate = new Date(info.date);
+                            endDate.setDate(endDate.getDate() + 1);
+                            const end = formatLocalDate(endDate);
+                            applyCeoSelection({ start, end }, true);
                         }
                     },
                     eventClick: function(info) {
@@ -805,12 +1022,13 @@ if (!isset($currentRole)) exit;
                 calendar.render();
                 if (elemId === 'ceo-calendar') {
                     ceoCalendarInstance = calendar;
+                    const persistedRange = loadPersistedCeoRange();
+                    applyCeoSelection(persistedRange || getTodayRange());
                 }
             }
 
             initFC('employee-calendar');
             initFC('ceo-calendar');
-            clearCalendarActions();
 
             document.getElementById('action-mode-vacation-btn')?.addEventListener('click', function() {
                 const start = document.getElementById('blocked-start-date')?.value;
@@ -818,7 +1036,7 @@ if (!isset($currentRole)) exit;
                 if (start && end) {
                     const endPlusOne = new Date(end);
                     endPlusOne.setDate(endPlusOne.getDate() + 1);
-                    showActionVacationSelection(start, endPlusOne.toISOString().slice(0, 10));
+                    showActionVacationSelection(start, formatLocalDate(endPlusOne));
                 }
             });
             document.getElementById('action-mode-block-btn-2')?.addEventListener('click', function() {
@@ -827,23 +1045,11 @@ if (!isset($currentRole)) exit;
                 if (start && end) {
                     const endPlusOne = new Date(end);
                     endPlusOne.setDate(endPlusOne.getDate() + 1);
-                    showActionBlockedSelection(start, endPlusOne.toISOString().slice(0, 10));
+                    showActionBlockedSelection(start, formatLocalDate(endPlusOne));
                 }
             });
 
-            document.addEventListener('click', function(event) {
-                const calendarEl = document.getElementById('ceo-calendar');
-                const actionPanel = document.querySelector('#calendar-action-block-form')?.closest('.bg-white');
-                if (!calendarEl || !actionPanel) return;
-                const clickedInsideCalendar = calendarEl.contains(event.target);
-                const clickedInsideActionPanel = actionPanel.contains(event.target);
-                if (!clickedInsideCalendar && !clickedInsideActionPanel) {
-                    if (ceoCalendarInstance) {
-                        ceoCalendarInstance.unselect();
-                    }
-                    clearCalendarActions();
-                }
-            });
+            // Admin calendar keeps a persistent selection by design.
         });
 
         function openExportModal(isAdminExport) {

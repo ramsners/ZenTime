@@ -9,11 +9,24 @@ spl_autoload_register(function ($class) {
 use App\Models\User;
 use App\Models\Request as VacationRequest;
 use App\Models\Department;
+use App\Models\Notification;
+use App\Models\RequestComment;
+use App\Models\AuditLog;
+use App\Models\SystemSetting;
 use App\Core\I18n;
 
 session_start();
 
 $action = $_GET['action'] ?? null;
+
+function notifyAdmins($title, $message, $category = 'info') {
+    $users = User::getAll();
+    foreach ($users as $u) {
+        if (($u['role'] ?? '') === 'CEO') {
+            Notification::create($u['id'], $title, $message, $category);
+        }
+    }
+}
 
 // Handle Language Switch
 if (isset($_GET['lang'])) {
@@ -231,6 +244,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header("Location: /?error=request_conflict");
                 exit;
             }
+            notifyAdmins(
+                'Neuer Urlaubsantrag',
+                $currentUser['firstname'] . ' ' . $currentUser['lastname'] . " beantragt Urlaub von $start bis $end.",
+                'request'
+            );
+            AuditLog::create($currentUser['id'], 'request_created', 'vacation_request', null, json_encode([
+                'start_date' => $start,
+                'end_date' => $end,
+                'net_days' => $netDays
+            ]));
             header("Location: /?success=created");
             exit;
         }
@@ -239,6 +262,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'withdraw_request' && $currentRole === 'Employee') {
         if (!empty($_POST['request_id'])) {
             VacationRequest::withdrawRequest($_POST['request_id'], $currentUser['id']);
+            AuditLog::create($currentUser['id'], 'request_withdrawn', 'vacation_request', (int) $_POST['request_id'], null);
             header("Location: /?success=action_success");
             exit;
         }
@@ -247,6 +271,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'request_storno' && $currentRole === 'Employee') {
         if (!empty($_POST['request_id'])) {
             VacationRequest::requestStorno($_POST['request_id'], $currentUser['id']);
+            notifyAdmins(
+                'Storno angefragt',
+                $currentUser['firstname'] . ' ' . $currentUser['lastname'] . ' hat ein Storno angefragt.',
+                'request'
+            );
+            AuditLog::create($currentUser['id'], 'request_storno_requested', 'vacation_request', (int) $_POST['request_id'], null);
             header("Location: /?success=action_success");
             exit;
         }
@@ -259,7 +289,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Allows approving or rejecting a request, or approving/rejecting a Storno request
         // If Storno is approved -> cancelled. If Storno is rejected -> stays approved.
         if ($requestId && $status) {
-            VacationRequest::decide($requestId, $currentUser['id'], $status, $comment);
+            $ok = VacationRequest::decide($requestId, $currentUser['id'], $status, $comment);
+            if (!$ok) {
+                header("Location: /?error=coverage_conflict");
+                exit;
+            }
+            $decidedReq = VacationRequest::getById($requestId);
+            if ($decidedReq) {
+                Notification::create(
+                    $decidedReq['user_id'],
+                    'Antrag aktualisiert',
+                    "Dein Antrag ($requestId) wurde auf '$status' gesetzt.",
+                    'decision'
+                );
+            }
+            if (!empty($comment)) {
+                RequestComment::create($requestId, $currentUser['id'], $comment);
+            }
+            AuditLog::create($currentUser['id'], 'request_decided', 'vacation_request', (int) $requestId, json_encode([
+                'status' => $status,
+                'comment' => $comment
+            ]));
             header("Location: /?success=decided");
             exit;
         }
@@ -288,6 +338,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             @mail($_POST['email'], 'Welcome to ZenTime', $msg);
             error_log("SENT MAIL TO: " . $_POST['email'] . "\n" . $msg);
         }
+        AuditLog::create($currentUser['id'], 'employee_created', 'user', null, json_encode([
+            'email' => $_POST['email'],
+            'role' => $_POST['role'] ?? 'Employee'
+        ]));
         header("Location: /?success=" . ($success ? "employee_created" : "employee_failed"));
         exit;
     }
@@ -310,11 +364,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             isset($_POST['vacation_entitlement_days']) ? (int) $_POST['vacation_entitlement_days'] : 25,
             isset($_POST['overtime_hours']) ? (float) $_POST['overtime_hours'] : 0
         );
+        AuditLog::create($currentUser['id'], 'employee_updated', 'user', (int) $_POST['emp_id'], null);
         header("Location: /?success=action_success");
         exit;
     }
 
     if ($action === 'delete_employee' && $isAdmin) {
+        AuditLog::create($currentUser['id'], 'employee_deleted', 'user', (int) $_POST['emp_id'], null);
         User::deleteEmployee($_POST['emp_id']);
         header("Location: /?success=action_success");
         exit;
@@ -330,6 +386,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header("Location: /?error=blocked_exists");
                 exit;
             }
+            AuditLog::create($currentUser['id'], 'blocked_period_created', 'blocked_period', null, json_encode([
+                'start_date' => $start,
+                'end_date' => $end
+            ]));
             header("Location: /?success=action_success");
             exit;
         }
@@ -358,6 +418,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header("Location: /?error=request_conflict");
                 exit;
             }
+            Notification::create(
+                $userId,
+                'Urlaub eingetragen',
+                "Es wurde Urlaub fuer dich von $start bis $end eingetragen.",
+                'request'
+            );
+            AuditLog::create($currentUser['id'], 'admin_vacation_created', 'vacation_request', null, json_encode([
+                'user_id' => $userId,
+                'start_date' => $start,
+                'end_date' => $end
+            ]));
             header("Location: /?success=action_success");
             exit;
         }
@@ -369,10 +440,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $blockedId = $_POST['blocked_id'] ?? null;
         if ($blockedId) {
             VacationRequest::deleteBlockedPeriod($blockedId);
+            AuditLog::create($currentUser['id'], 'blocked_period_deleted', 'blocked_period', (int) $blockedId, null);
             header("Location: /?success=action_success");
             exit;
         }
         header("Location: /?error=invalid_request");
+        exit;
+    }
+
+    if ($action === 'add_request_comment') {
+        $requestId = (int) ($_POST['request_id'] ?? 0);
+        $commentText = trim($_POST['comment'] ?? '');
+        if ($requestId > 0 && $commentText !== '') {
+            RequestComment::create($requestId, $currentUser['id'], $commentText);
+            $requestForComment = VacationRequest::getById($requestId);
+            if ($requestForComment) {
+                $notifyUserId = ((int) $requestForComment['user_id'] === (int) $currentUser['id'])
+                    ? (int) ($requestForComment['approver_id'] ?: 0)
+                    : (int) $requestForComment['user_id'];
+                if ($notifyUserId > 0) {
+                    Notification::create($notifyUserId, 'Neuer Kommentar', 'Es gibt einen neuen Kommentar zu deinem Antrag.', 'comment');
+                }
+            }
+            AuditLog::create($currentUser['id'], 'request_comment_added', 'vacation_request', $requestId, null);
+        }
+        header("Location: /?success=action_success");
+        exit;
+    }
+
+    if ($action === 'update_min_staff' && $isAdmin) {
+        $minStaff = max(0, (int) ($_POST['min_staff_available'] ?? 1));
+        SystemSetting::set('min_staff_available', (string) $minStaff);
+        AuditLog::create($currentUser['id'], 'min_staff_updated', 'system_setting', null, json_encode(['min_staff_available' => $minStaff]));
+        header("Location: /?success=action_success");
         exit;
     }
 
@@ -420,6 +520,17 @@ if ($isAdmin) {
     $requests = VacationRequest::getByUserId($currentUser['id']);
     $blockedPeriods = VacationRequest::getBlockedPeriods();
 }
+
+$notificationList = Notification::getByUserId($currentUser['id'], 12);
+$notificationUnreadCount = Notification::countUnread($currentUser['id']);
+$userVacationStats = VacationRequest::calculateUserVacationStats($currentUser['id']);
+$minStaffAvailable = (int) SystemSetting::get('min_staff_available', 1);
+$requestCommentsById = [];
+foreach ($requests as $reqForComments) {
+    $requestCommentsById[$reqForComments['id']] = RequestComment::getByRequestId($reqForComments['id']);
+}
+$recentAuditLogs = $isAdmin ? AuditLog::getRecent(50) : [];
+$capacitySummary = $isAdmin ? VacationRequest::getCapacitySummary(date('Y-m-d'), date('Y-m-d', strtotime('+30 days'))) : null;
 
 // Prepare FullCalendar events
 $fcEvents = [];
