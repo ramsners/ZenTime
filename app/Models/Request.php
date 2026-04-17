@@ -24,10 +24,10 @@ class Request {
         return $stmt->fetchAll();
     }
 
-    public static function create($userId, $startDate, $endDate, $netDays) {
+    public static function create($userId, $startDate, $endDate, $netDays, $type = 'vacation', $deductedHours = 0) {
         $db = Database::getConnection();
-        $stmt = $db->prepare("INSERT INTO vacation_requests (user_id, start_date, end_date, net_days) VALUES (?, ?, ?, ?)");
-        return $stmt->execute([$userId, $startDate, $endDate, $netDays]);
+        $stmt = $db->prepare("INSERT INTO vacation_requests (user_id, start_date, end_date, net_days, type, deducted_hours) VALUES (?, ?, ?, ?, ?, ?)");
+        return $stmt->execute([$userId, $startDate, $endDate, $netDays, $type, $deductedHours]);
     }
 
     public static function decide($requestId, $approverId, $status, $comment = null) {

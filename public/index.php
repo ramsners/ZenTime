@@ -208,4 +208,32 @@ if ($currentRole === 'CEO') {
     $requests = VacationRequest::getByUserId($currentUser['id']);
 }
 
+// Prepare FullCalendar events
+$fcEvents = [];
+foreach ($requests as $r) {
+    if ($r['status'] === 'rejected' || $r['status'] === 'cancelled') continue;
+    
+    $title = ($currentRole === 'CEO') ? $r['firstname'] . ' ' . $r['lastname'] : I18n::get('emp.plan');
+    if ($r['status'] === 'pending') $title .= ' (' . I18n::get('emp.status_pending') . ')';
+    if ($r['status'] === 'storno_requested') $title .= ' (' . I18n::get('emp.status_storno_requested') . ')';
+    
+    // FullCalendar end bounds are exclusive
+    $endDateStr = date('Y-m-d', strtotime($r['end_date'] . ' +1 day'));
+    
+    $color = '#a3e635'; // lime-400
+    if ($r['status'] === 'pending') $color = '#fde047'; // yellow-300
+    if ($r['status'] === 'storno_requested') $color = '#fb923c'; // orange-400
+    
+    $fcEvents[] = [
+        'id' => $r['id'],
+        'title' => $title,
+        'start' => $r['start_date'],
+        'end' => $endDateStr,
+        'backgroundColor' => $color,
+        'borderColor' => $color,
+        'textColor' => ($r['status'] === 'pending') ? '#064e3b' : '#fff',
+        'allDay' => true
+    ];
+}
+
 include __DIR__ . '/../app/Views/layout.php';

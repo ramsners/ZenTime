@@ -11,13 +11,20 @@ if (!isset($currentRole)) exit;
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js'></script>
     <style>
         body { font-family: 'Outfit', sans-serif; background-color: #fefce8; color: #064e3b; }
         .glass { background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(163, 230, 53, 0.3); }
-        .calendar-grid { display: grid; grid-template-columns: repeat(31, minmax(0, 1fr)); gap: 1px; }
+        .fc-toolbar-title { font-weight: 700 !important; color: #064e3b; font-family: 'Outfit', sans-serif;}
+        .fc-button-primary { background-color: #a3e635 !important; border-color: #84cc16 !important; color: #064e3b !important; font-weight: bold !important; text-transform: capitalize; }
+        .fc-button-primary:hover { background-color: #84cc16 !important; }
+        .fc-day-today { background-color: #fefce8 !important; }
+        .fc-col-header-cell-cushion { color: #064e3b !important; }
+        .fc-daygrid-day-number { color: #064e3b !important; }
+        .fc-event { border: none !important; border-radius: 4px; padding: 2px 4px; font-weight: 600; font-size: 0.75rem; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;}
     </style>
 </head>
-<body class="min-h-screen flex flex-col relative overflow-hidden">
+<body class="min-h-screen flex flex-col relative overflow-x-hidden">
     <!-- Sunny accents -->
     <div class="absolute top-[-10%] right-[-10%] w-96 h-96 bg-yellow-300 rounded-full mix-blend-multiply opacity-20 blur-3xl z-[-1]"></div>
     <div class="absolute bottom-[-10%] left-[-10%] w-96 h-96 bg-lime-300 rounded-full mix-blend-multiply opacity-20 blur-3xl z-[-1]"></div>
@@ -106,8 +113,19 @@ if (!isset($currentRole)) exit;
 
         <?php if ($currentRole === 'Employee'): ?>
             <!-- EMPLOYEE VIEW -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- Submit Form -->
+            <div x-data="{ empTab: 'timeline' }">
+                <div class="flex flex-wrap gap-4 mb-8">
+                    <button @click="empTab = 'timeline'" :class="empTab === 'timeline' ? 'bg-lime-400 text-emerald-900 shadow-md shadow-lime-400/30' : 'bg-white text-emerald-700 border border-lime-100'" class="px-6 py-2.5 rounded-xl font-bold tracking-tight transition-all">
+                        <?= I18n::get('emp.timeline') ?>
+                    </button>
+                    <button @click="empTab = 'calendar'; setTimeout(() => window.dispatchEvent(new Event('resize')), 100);" :class="empTab === 'calendar' ? 'bg-lime-400 text-emerald-900 shadow-md shadow-lime-400/30' : 'bg-white text-emerald-700 border border-lime-100'" class="px-6 py-2.5 rounded-xl font-bold tracking-tight transition-all flex border justify-center items-center gap-2">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>    
+                        <?= I18n::get('ceo.calendar') ?>
+                    </button>
+                </div>
+
+                <div x-show="empTab === 'timeline'" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Submit Form -->
                 <div class="lg:col-span-1">
                     <div class="bg-white rounded-3xl p-8 shadow-xl shadow-lime-900/5 relative overflow-hidden border border-lime-100">
                         <div class="absolute top-0 right-0 w-32 h-32 bg-yellow-100 rounded-bl-full -z-10 mix-blend-multiply opacity-50"></div>
@@ -194,6 +212,12 @@ if (!isset($currentRole)) exit;
                         </div>
                     </div>
                 </div>
+                </div>
+
+                <!-- EMPLOYEE CALENDAR -->
+                <div x-show="empTab === 'calendar'" style="display: none;" class="bg-white p-8 rounded-3xl shadow-xl border border-lime-100">
+                     <div id="employee-calendar"></div>
+                </div>
             </div>
 
         <?php elseif ($currentRole === 'CEO'): ?>
@@ -203,7 +227,7 @@ if (!isset($currentRole)) exit;
                     <button @click="tab = 'requests'" :class="tab === 'requests' ? 'bg-lime-400 text-emerald-900 shadow-md shadow-lime-400/30' : 'bg-white text-emerald-700 border border-lime-100'" class="px-6 py-2.5 rounded-xl font-bold tracking-tight transition-all">
                         <?= I18n::get('ceo.requests') ?>
                     </button>
-                    <button @click="tab = 'calendar'" :class="tab === 'calendar' ? 'bg-lime-400 text-emerald-900 shadow-md shadow-lime-400/30' : 'bg-white text-emerald-700 border border-lime-100'" class="px-6 py-2.5 rounded-xl font-bold tracking-tight transition-all flex border justify-center items-center gap-2">
+                    <button @click="tab = 'calendar'; setTimeout(() => window.dispatchEvent(new Event('resize')), 100);" :class="tab === 'calendar' ? 'bg-lime-400 text-emerald-900 shadow-md shadow-lime-400/30' : 'bg-white text-emerald-700 border border-lime-100'" class="px-6 py-2.5 rounded-xl font-bold tracking-tight transition-all flex border justify-center items-center gap-2">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>    
                         <?= I18n::get('ceo.calendar') ?>
                     </button>
@@ -282,60 +306,17 @@ if (!isset($currentRole)) exit;
                 </div>
 
                 <!-- CALENDAR TAB -->
-                <div x-show="tab === 'calendar'" style="display: none;" class="bg-white p-8 rounded-3xl shadow-xl border border-lime-100 overflow-x-auto">
+                <div x-show="tab === 'calendar'" style="display: none;" class="bg-white p-8 rounded-3xl shadow-xl border border-lime-100">
                    <h2 class="text-3xl font-bold mb-6 text-emerald-900 tracking-tight flex items-center justify-between">
                        <?= I18n::get('ceo.calendar') ?>
                        <div class="text-sm font-normal text-emerald-600 flex gap-4">
                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-lime-400 block"></span> <?= I18n::get('emp.status_approved') ?></span>
                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-yellow-300 block"></span> <?= I18n::get('emp.status_pending') ?></span>
+                           <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-orange-400 block"></span> <?= I18n::get('emp.status_storno_requested') ?></span>
                        </div>
                    </h2>
                    
-                   <?php
-                        $curMonth = date('n');
-                        $curYear = date('Y');
-                        $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $curMonth, $curYear);
-                   ?>
-                   <div class="min-w-[800px]">
-                       <div class="flex p-3 bg-lime-50 rounded-t-xl border border-lime-100 font-semibold text-emerald-800 text-xs text-center">
-                           <div class="w-48 text-left pl-2"><?= date('F Y') ?></div>
-                           <div class="flex-1 grid gap-1" style="grid-template-columns: repeat(<?= $daysInMonth ?>, minmax(0, 1fr));">
-                                <?php for($d = 1; $d <= $daysInMonth; $d++): ?>
-                                    <div><?= $d ?></div>
-                                <?php endfor; ?>
-                           </div>
-                       </div>
-                       
-                       <div class="border border-t-0 border-lime-100 rounded-b-xl divide-y divide-lime-50">
-                           <?php foreach ($employees as $emp): if ($emp['role'] === 'CEO') continue; ?>
-                               <div class="flex p-3 items-center hover:bg-yellow-50/50">
-                                   <div class="w-48 text-sm font-bold text-emerald-900 truncate pr-4">
-                                       <?= htmlspecialchars($emp['firstname'] . ' ' . $emp['lastname']) ?>
-                                   </div>
-                                   <div class="flex-1 grid gap-1 h-6 relative" style="grid-template-columns: repeat(<?= $daysInMonth ?>, minmax(0, 1fr));">
-                                        <?php 
-                                            // Render periods
-                                            foreach($requests as $r) {
-                                                if ($r['user_id'] != $emp['id']) continue;
-                                                if (in_array($r['status'], ['rejected', 'cancelled'])) continue;
-                                                
-                                                $sMs = strtotime($r['start_date']);
-                                                $eMs = strtotime($r['end_date']);
-                                                
-                                                for ($d=1; $d<=$daysInMonth; $d++){
-                                                    $curMs = strtotime("$curYear-$curMonth-$d");
-                                                    if ($curMs >= $sMs && $curMs <= $eMs) {
-                                                        $color = $r['status'] == 'approved' ? 'bg-lime-400' : 'bg-yellow-300';
-                                                        echo "<div class='col-start-$d $color rounded-sm'></div>";
-                                                    }
-                                                }
-                                            }
-                                        ?>
-                                   </div>
-                               </div>
-                           <?php endforeach; ?>
-                       </div>
-                   </div>
+                   <div id="ceo-calendar"></div>
                 </div>
 
                 <!-- TEAM TAB -->
@@ -439,6 +420,33 @@ if (!isset($currentRole)) exit;
     </main>
 
     <script>
+        const fcEvents = <?= isset($fcEvents) ? json_encode($fcEvents) : '[]' ?>;
+        const currentLang = '<?= $_SESSION['lang'] ?? 'en' ?>';
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            function initFC(elemId) {
+                const el = document.getElementById(elemId);
+                if (!el) return;
+                const calendar = new FullCalendar.Calendar(el, {
+                    initialView: 'dayGridMonth',
+                    locale: currentLang,
+                    events: fcEvents,
+                    headerToolbar: {
+                        left: 'prev,next today',
+                        center: 'title',
+                        right: 'dayGridMonth,dayGridWeek'
+                    },
+                    height: 'auto',
+                    firstDay: 1, // Start on Monday
+                    eventDisplay: 'block'
+                });
+                calendar.render();
+            }
+
+            initFC('employee-calendar');
+            initFC('ceo-calendar');
+        });
+
         function vacationForm() {
             return {
                 start: '',

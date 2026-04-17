@@ -8,12 +8,12 @@ use PDO;
 class User {
     public static function getAll() {
         $db = Database::getConnection();
-        return $db->query("SELECT * FROM users")->fetchAll();
+        return $db->query("SELECT u.*, d.name as department_name, d.color as department_color FROM users u LEFT JOIN departments d ON u.department_id = d.id")->fetchAll();
     }
 
     public static function getById($id) {
         $db = Database::getConnection();
-        $stmt = $db->prepare("SELECT * FROM users WHERE id = ? LIMIT 1");
+        $stmt = $db->prepare("SELECT u.*, d.name as department_name, d.color as department_color FROM users u LEFT JOIN departments d ON u.department_id = d.id WHERE u.id = ? LIMIT 1");
         $stmt->execute([$id]);
         return $stmt->fetch();
     }
@@ -31,13 +31,13 @@ class User {
         return false;
     }
 
-    public static function createEmployee($firstname, $lastname, $email, $mnr, $password) {
+    public static function createEmployee($firstname, $lastname, $email, $mnr, $password, $departmentId = null, $customColor = null, $vacationDays = 25, $overtimeHours = 0) {
         $db = Database::getConnection();
         try {
             $db->beginTransaction();
 
-            $stmt = $db->prepare("INSERT INTO users (mnr, firstname, lastname, email, role) VALUES (?, ?, ?, ?, 'Employee')");
-            $stmt->execute([$mnr, $firstname, $lastname, $email]);
+            $stmt = $db->prepare("INSERT INTO users (mnr, firstname, lastname, email, role, department_id, custom_color, vacation_entitlement_days, overtime_hours) VALUES (?, ?, ?, ?, 'Employee', ?, ?, ?, ?)");
+            $stmt->execute([$mnr, $firstname, $lastname, $email, $departmentId, $customColor, $vacationDays, $overtimeHours]);
             $userId = $db->lastInsertId();
 
             $hash = password_hash($password, PASSWORD_DEFAULT);
@@ -52,13 +52,13 @@ class User {
         }
     }
 
-    public static function updateEmployee($id, $firstname, $lastname, $email, $mnr, $password = null) {
+    public static function updateEmployee($id, $firstname, $lastname, $email, $mnr, $password = null, $departmentId = null, $customColor = null, $vacationDays = 25, $overtimeHours = 0) {
         $db = Database::getConnection();
         try {
             $db->beginTransaction();
 
-            $stmt = $db->prepare("UPDATE users SET mnr = ?, firstname = ?, lastname = ?, email = ? WHERE id = ?");
-            $stmt->execute([$mnr, $firstname, $lastname, $email, $id]);
+            $stmt = $db->prepare("UPDATE users SET mnr = ?, firstname = ?, lastname = ?, email = ?, department_id = ?, custom_color = ?, vacation_entitlement_days = ?, overtime_hours = ? WHERE id = ?");
+            $stmt->execute([$mnr, $firstname, $lastname, $email, $departmentId, $customColor, $vacationDays, $overtimeHours, $id]);
 
             if (!empty($password)) {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
