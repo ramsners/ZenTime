@@ -1,0 +1,6 @@
+/vendor/
+/node_modules/
+config/db.php
+*.sqlite-journal
+.DS_Store
+.env

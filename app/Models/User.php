@@ -31,13 +31,17 @@ class User {
         return false;
     }
 
-    public static function createEmployee($firstname, $lastname, $email, $mnr, $password, $departmentId = null, $customColor = null, $vacationDays = 25, $overtimeHours = 0) {
+    public static function createEmployee($firstname, $lastname, $email, $mnr, $password, $role = 'Employee', $departmentId = null, $customColor = null, $vacationDays = 25, $overtimeHours = 0) {
         $db = Database::getConnection();
         try {
             $db->beginTransaction();
 
-            $stmt = $db->prepare("INSERT INTO users (mnr, firstname, lastname, email, role, department_id, custom_color, vacation_entitlement_days, overtime_hours) VALUES (?, ?, ?, ?, 'Employee', ?, ?, ?, ?)");
-            $stmt->execute([$mnr, $firstname, $lastname, $email, $departmentId, $customColor, $vacationDays, $overtimeHours]);
+            if ($role === 'Admin') {
+                $role = 'CEO';
+            }
+            $safeRole = in_array($role, ['CEO', 'Employee'], true) ? $role : 'Employee';
+            $stmt = $db->prepare("INSERT INTO users (mnr, firstname, lastname, email, role, department_id, custom_color, vacation_entitlement_days, overtime_hours) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$mnr, $firstname, $lastname, $email, $safeRole, $departmentId, $customColor, $vacationDays, $overtimeHours]);
             $userId = $db->lastInsertId();
 
             $hash = password_hash($password, PASSWORD_DEFAULT);
@@ -52,13 +56,17 @@ class User {
         }
     }
 
-    public static function updateEmployee($id, $firstname, $lastname, $email, $mnr, $password = null, $departmentId = null, $customColor = null, $vacationDays = 25, $overtimeHours = 0) {
+    public static function updateEmployee($id, $firstname, $lastname, $email, $mnr, $password = null, $role = 'Employee', $departmentId = null, $customColor = null, $vacationDays = 25, $overtimeHours = 0) {
         $db = Database::getConnection();
         try {
             $db->beginTransaction();
 
-            $stmt = $db->prepare("UPDATE users SET mnr = ?, firstname = ?, lastname = ?, email = ?, department_id = ?, custom_color = ?, vacation_entitlement_days = ?, overtime_hours = ? WHERE id = ?");
-            $stmt->execute([$mnr, $firstname, $lastname, $email, $departmentId, $customColor, $vacationDays, $overtimeHours, $id]);
+            if ($role === 'Admin') {
+                $role = 'CEO';
+            }
+            $safeRole = in_array($role, ['CEO', 'Employee'], true) ? $role : 'Employee';
+            $stmt = $db->prepare("UPDATE users SET mnr = ?, firstname = ?, lastname = ?, email = ?, role = ?, department_id = ?, custom_color = ?, vacation_entitlement_days = ?, overtime_hours = ? WHERE id = ?");
+            $stmt->execute([$mnr, $firstname, $lastname, $email, $safeRole, $departmentId, $customColor, $vacationDays, $overtimeHours, $id]);
 
             if (!empty($password)) {
                 $hash = password_hash($password, PASSWORD_DEFAULT);

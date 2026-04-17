@@ -23,6 +23,8 @@ class Database {
                 self::$instance->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
                 self::$instance->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 
+                self::ensureSchemaUpToDate();
+
                 if ($isNew) {
                     self::initializeSchema();
                     self::seedData();
@@ -32,6 +34,21 @@ class Database {
             }
         }
         return self::$instance;
+    }
+
+    private static function ensureSchemaUpToDate() {
+        $db = self::$instance;
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS booking_blocked_periods (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                start_date DATE NOT NULL,
+                end_date DATE NOT NULL,
+                label VARCHAR,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL
+            );
+        ");
     }
 
     private static function initializeSchema() {

@@ -1,0 +1,19 @@
+{
+    "name": "ramsner/zentime",
+    "description": "ZenTime - Time and Vacation Management System",
+    "type": "project",
+    "require": {
+        "php": ">=8.0",
+        "phpmailer/phpmailer": "^6.8"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    },
+    "authors": [
+        {
+            "name": "ramsner"
+        }
+    ]
+}

@@ -8,6 +8,7 @@ spl_autoload_register(function ($class) {
 
 use App\Models\User;
 use App\Models\Request as VacationRequest;
+use App\Models\Department;
 use App\Core\I18n;
 
 session_start();
@@ -94,6 +95,7 @@ if (!$currentUser) {
 }
 
 $currentRole = $currentUser['role'];
+$isAdmin = in_array($currentRole, ['CEO', 'Admin'], true);
 
 // Fetch the full credentials to check must_change_password
 $db = \App\Core\Database::getConnection();
@@ -116,6 +118,102 @@ if ($creds['must_change_password']) {
     exit;
 }
 
+if ($action === 'calendar_ics') {
+    $requestsForCalendar = ($isAdmin)
+        ? VacationRequest::getAll()
+        : VacationRequest::getByUserId($currentUser['id']);
+    $blockedForCalendar = VacationRequest::getBlockedPeriods();
+
+    $filterStart = $_GET['export_start'] ?? null;
+    $filterEnd = $_GET['export_end'] ?? null;
+    $includeApproved = isset($_GET['include_approved']) ? (bool) $_GET['include_approved'] : true;
+    $includePending = isset($_GET['include_pending']) ? (bool) $_GET['include_pending'] : true;
+    $includeStorno = isset($_GET['include_storno']) ? (bool) $_GET['include_storno'] : true;
+    $includeBlocked = isset($_GET['include_blocked']) ? (bool) $_GET['include_blocked'] : false;
+
+    $statusAllow = [];
+    if ($includeApproved) $statusAllow[] = 'approved';
+    if ($includePending) $statusAllow[] = 'pending';
+    if ($includeStorno) $statusAllow[] = 'storno_requested';
+    if (empty($statusAllow)) {
+        $statusAllow = ['approved', 'pending', 'storno_requested'];
+    }
+
+    $lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//ZenTime//Vacation Calendar//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH'
+    ];
+
+    foreach ($requestsForCalendar as $requestItem) {
+        if (in_array($requestItem['status'], ['rejected', 'cancelled'], true)) {
+            continue;
+        }
+        if (!in_array($requestItem['status'], $statusAllow, true)) {
+            continue;
+        }
+        if ($filterStart && $requestItem['end_date'] < $filterStart) {
+            continue;
+        }
+        if ($filterEnd && $requestItem['start_date'] > $filterEnd) {
+            continue;
+        }
+
+        $title = ($isAdmin)
+            ? ($requestItem['firstname'] . ' ' . $requestItem['lastname'] . ' - Vacation')
+            : 'Vacation';
+
+        $start = date('Ymd', strtotime($requestItem['start_date']));
+        $endExclusive = date('Ymd', strtotime($requestItem['end_date'] . ' +1 day'));
+        $created = gmdate('Ymd\THis\Z', strtotime($requestItem['created_at'] ?? 'now'));
+        $uid = 'request-' . $requestItem['id'] . '@zentime.local';
+
+        $lines[] = 'BEGIN:VEVENT';
+        $lines[] = 'UID:' . $uid;
+        $lines[] = 'DTSTAMP:' . $created;
+        $lines[] = 'DTSTART;VALUE=DATE:' . $start;
+        $lines[] = 'DTEND;VALUE=DATE:' . $endExclusive;
+        $lines[] = 'SUMMARY:' . str_replace([',', ';'], ['\,', '\;'], $title);
+        $lines[] = 'DESCRIPTION:Status ' . $requestItem['status'];
+        $lines[] = 'END:VEVENT';
+    }
+
+    if ($isAdmin && $includeBlocked) {
+        foreach ($blockedForCalendar as $blockedItem) {
+            if ($filterStart && $blockedItem['end_date'] < $filterStart) {
+                continue;
+            }
+            if ($filterEnd && $blockedItem['start_date'] > $filterEnd) {
+                continue;
+            }
+
+            $start = date('Ymd', strtotime($blockedItem['start_date']));
+            $endExclusive = date('Ymd', strtotime($blockedItem['end_date'] . ' +1 day'));
+            $created = gmdate('Ymd\THis\Z', strtotime($blockedItem['created_at'] ?? 'now'));
+            $uid = 'blocked-' . $blockedItem['id'] . '@zentime.local';
+            $label = $blockedItem['label'] ?: 'Booking blocked';
+
+            $lines[] = 'BEGIN:VEVENT';
+            $lines[] = 'UID:' . $uid;
+            $lines[] = 'DTSTAMP:' . $created;
+            $lines[] = 'DTSTART;VALUE=DATE:' . $start;
+            $lines[] = 'DTEND;VALUE=DATE:' . $endExclusive;
+            $lines[] = 'SUMMARY:' . str_replace([',', ';'], ['\,', '\;'], $label);
+            $lines[] = 'DESCRIPTION:Blocked booking period';
+            $lines[] = 'END:VEVENT';
+        }
+    }
+
+    $lines[] = 'END:VCALENDAR';
+
+    header('Content-Type: text/calendar; charset=utf-8');
+    header('Content-Disposition: attachment; filename="zentime-calendar.ics"');
+    echo implode("\r\n", $lines);
+    exit;
+}
+
 // Handle Data Manipulating Actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'create_request' && $currentRole === 'Employee') {
@@ -123,7 +221,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $end = $_POST['end_date'] ?? null;
         $netDays = $_POST['net_days'] ?? null;
         if ($start && $end && $netDays) {
-            VacationRequest::create($currentUser['id'], $start, $end, $netDays);
+            $today = date('Y-m-d');
+            if ($start < $today || $end < $today) {
+                header("Location: /?error=past_date");
+                exit;
+            }
+            $created = VacationRequest::create($currentUser['id'], $start, $end, $netDays);
+            if (!$created) {
+                header("Location: /?error=request_conflict");
+                exit;
+            }
             header("Location: /?success=created");
             exit;
         }
@@ -145,7 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if ($action === 'decide_request' && $currentRole === 'CEO') {
+    if ($action === 'decide_request' && $isAdmin) {
         $requestId = $_POST['request_id'] ?? null;
         $status = $_POST['status'] ?? null;
         $comment = $_POST['admin_comment'] ?? null;
@@ -158,7 +265,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if ($action === 'create_employee' && $currentRole === 'CEO') {
+    if ($action === 'create_employee' && $isAdmin) {
         if (!ctype_digit($_POST['mnr'])) {
             header("Location: /?error=invalid_mnr");
             exit;
@@ -169,7 +276,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_POST['lastname'],
             $_POST['email'],
             $_POST['mnr'],
-            $_POST['password']
+            $_POST['password'],
+            $_POST['role'] ?? 'Employee',
+            ($_POST['department_id'] ?? '') !== '' ? $_POST['department_id'] : null,
+            null,
+            isset($_POST['vacation_entitlement_days']) ? (int) $_POST['vacation_entitlement_days'] : 25,
+            isset($_POST['overtime_hours']) ? (float) $_POST['overtime_hours'] : 0
         );
         if ($success) {
             $msg = "Hello ".$_POST['firstname'].", your account has been created.\nLogin with Email: ".$_POST['email']." or MNR: ".$_POST['mnr']."\nPassword: ".$_POST['password'];
@@ -180,19 +292,87 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    if ($action === 'edit_employee' && $currentRole === 'CEO') {
+    if ($action === 'edit_employee' && $isAdmin) {
         if (!ctype_digit($_POST['mnr'])) {
             header("Location: /?error=invalid_mnr");
             exit;
         }
-        User::updateEmployee($_POST['emp_id'], $_POST['firstname'], $_POST['lastname'], $_POST['email'], $_POST['mnr'], $_POST['password'] ?? null);
+        User::updateEmployee(
+            $_POST['emp_id'],
+            $_POST['firstname'],
+            $_POST['lastname'],
+            $_POST['email'],
+            $_POST['mnr'],
+            $_POST['password'] ?? null,
+            $_POST['role'] ?? 'Employee',
+            ($_POST['department_id'] ?? '') !== '' ? $_POST['department_id'] : null,
+            null,
+            isset($_POST['vacation_entitlement_days']) ? (int) $_POST['vacation_entitlement_days'] : 25,
+            isset($_POST['overtime_hours']) ? (float) $_POST['overtime_hours'] : 0
+        );
         header("Location: /?success=action_success");
         exit;
     }
 
-    if ($action === 'delete_employee' && $currentRole === 'CEO') {
+    if ($action === 'delete_employee' && $isAdmin) {
         User::deleteEmployee($_POST['emp_id']);
         header("Location: /?success=action_success");
+        exit;
+    }
+
+    if ($action === 'create_blocked_period' && $isAdmin) {
+        $start = $_POST['start_date'] ?? null;
+        $end = $_POST['end_date'] ?? null;
+        $label = trim($_POST['label'] ?? '');
+        if ($start && $end && $end >= $start) {
+            $createdBlocked = VacationRequest::createBlockedPeriod($start, $end, $label ?: null, $currentUser['id']);
+            if (!$createdBlocked) {
+                header("Location: /?error=blocked_exists");
+                exit;
+            }
+            header("Location: /?success=action_success");
+            exit;
+        }
+        header("Location: /?error=invalid_request");
+        exit;
+    }
+
+    if ($action === 'admin_create_vacation' && $isAdmin) {
+        $userId = isset($_POST['user_id']) ? (int) $_POST['user_id'] : 0;
+        $start = $_POST['start_date'] ?? null;
+        $end = $_POST['end_date'] ?? null;
+        $comment = trim($_POST['admin_comment'] ?? '');
+        if ($userId > 0 && $start && $end && $end >= $start) {
+            $today = date('Y-m-d');
+            if ($start < $today || $end < $today) {
+                header("Location: /?error=past_date");
+                exit;
+            }
+            $netDays = (int) ((strtotime($end) - strtotime($start)) / 86400) + 1;
+            if ($netDays <= 0) {
+                header("Location: /?error=invalid_request");
+                exit;
+            }
+            $created = VacationRequest::createAdminVacation($userId, $currentUser['id'], $start, $end, $netDays, $comment ?: null);
+            if (!$created) {
+                header("Location: /?error=request_conflict");
+                exit;
+            }
+            header("Location: /?success=action_success");
+            exit;
+        }
+        header("Location: /?error=invalid_request");
+        exit;
+    }
+
+    if ($action === 'delete_blocked_period' && $isAdmin) {
+        $blockedId = $_POST['blocked_id'] ?? null;
+        if ($blockedId) {
+            VacationRequest::deleteBlockedPeriod($blockedId);
+            header("Location: /?success=action_success");
+            exit;
+        }
+        header("Location: /?error=invalid_request");
         exit;
     }
 
@@ -201,11 +381,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Data fetching for Views
-if ($currentRole === 'CEO') {
+if ($isAdmin) {
     $requests = VacationRequest::getAll();
+    $blockedPeriods = VacationRequest::getBlockedPeriods();
     $employees = User::getAll(); // To show in the team dashboard
+    $departments = Department::getAll();
+
+    $selectedTeamUserId = isset($_GET['team_user']) ? (int) $_GET['team_user'] : 0;
+    if ($selectedTeamUserId <= 0 && !empty($employees)) {
+        $selectedTeamUserId = (int) $employees[0]['id'];
+    }
+    $selectedTeamUser = null;
+    foreach ($employees as $empCandidate) {
+        if ((int) $empCandidate['id'] === $selectedTeamUserId) {
+            $selectedTeamUser = $empCandidate;
+            break;
+        }
+    }
+    if (!$selectedTeamUser && !empty($employees)) {
+        $selectedTeamUser = $employees[0];
+        $selectedTeamUserId = (int) $selectedTeamUser['id'];
+    }
+
+    $selectedTeamUserRequests = [];
+    $selectedTeamUserUsedDays = 0;
+    if ($selectedTeamUser) {
+        foreach ($requests as $reqRow) {
+            if ((int) $reqRow['user_id'] !== (int) $selectedTeamUser['id']) {
+                continue;
+            }
+            $selectedTeamUserRequests[] = $reqRow;
+            if ($reqRow['status'] === 'approved') {
+                $selectedTeamUserUsedDays += (int) $reqRow['net_days'];
+            }
+        }
+    }
 } else {
     $requests = VacationRequest::getByUserId($currentUser['id']);
+    $blockedPeriods = VacationRequest::getBlockedPeriods();
 }
 
 // Prepare FullCalendar events
@@ -213,7 +426,7 @@ $fcEvents = [];
 foreach ($requests as $r) {
     if ($r['status'] === 'rejected' || $r['status'] === 'cancelled') continue;
     
-    $title = ($currentRole === 'CEO') ? $r['firstname'] . ' ' . $r['lastname'] : I18n::get('emp.plan');
+    $title = ($isAdmin) ? $r['firstname'] . ' ' . $r['lastname'] : I18n::get('emp.plan');
     if ($r['status'] === 'pending') $title .= ' (' . I18n::get('emp.status_pending') . ')';
     if ($r['status'] === 'storno_requested') $title .= ' (' . I18n::get('emp.status_storno_requested') . ')';
     
@@ -232,7 +445,30 @@ foreach ($requests as $r) {
         'backgroundColor' => $color,
         'borderColor' => $color,
         'textColor' => ($r['status'] === 'pending') ? '#064e3b' : '#fff',
-        'allDay' => true
+        'allDay' => true,
+        'extendedProps' => [
+            'status' => $r['status'],
+            'requestId' => $r['id']
+        ]
+    ];
+}
+
+foreach ($blockedPeriods as $b) {
+    $endDateStr = date('Y-m-d', strtotime($b['end_date'] . ' +1 day'));
+    $fcEvents[] = [
+        'id' => 'blocked-' . $b['id'],
+        'title' => $b['label'] ?: 'Booking blocked',
+        'start' => $b['start_date'],
+        'end' => $endDateStr,
+        'display' => 'background',
+        'backgroundColor' => 'rgba(239, 68, 68, 0.22)',
+        'borderColor' => 'rgba(239, 68, 68, 0.45)',
+        'allDay' => true,
+        'extendedProps' => [
+            'isBlocked' => true,
+            'blockedId' => $b['id'],
+            'blockedLabel' => $b['label'] ?? ''
+        ]
     ];
 }
 
