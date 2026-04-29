@@ -1,0 +1,65 @@
+<svg viewBox="0 0 320 320" width="320" height="320" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Badge background -->
+  <rect x="0" y="0" width="320" height="320" rx="52" fill="#ffffff"/>
+
+  <g transform="translate(20, 45)">
+
+    <!-- ROAD -->
+    <line x1="10" y1="205" x2="270" y2="205" stroke="#1a1a1a" stroke-width="5" stroke-linecap="round"/>
+
+    <!-- Main body -->
+    <rect x="20" y="112" width="240" height="76" rx="6" fill="#1a1a1a"/>
+
+    <!-- Roof -->
+    <rect x="28" y="68" width="224" height="50" rx="10" fill="#1a1a1a"/>
+
+    <!-- Two-tone divider stripe -->
+    <rect x="20" y="131" width="240" height="5" fill="#ffffff"/>
+
+    <!-- 4 panoramic windows -->
+    <rect x="34"  y="74" width="46" height="40" rx="5" fill="#ffffff"/>
+    <rect x="86"  y="74" width="46" height="40" rx="5" fill="#ffffff"/>
+    <rect x="138" y="74" width="46" height="40" rx="5" fill="#ffffff"/>
+    <rect x="190" y="74" width="46" height="40" rx="5" fill="#ffffff"/>
+
+    <!-- Pillars -->
+    <rect x="80"  y="68" width="7" height="50" fill="#1a1a1a"/>
+    <rect x="132" y="68" width="7" height="50" fill="#1a1a1a"/>
+    <rect x="184" y="68" width="7" height="50" fill="#1a1a1a"/>
+
+    <!-- Rear end -->
+    <rect x="20" y="112" width="14" height="76" rx="6" fill="#1a1a1a"/>
+    <!-- Rear light -->
+    <rect x="20" y="148" width="8" height="22" rx="3" fill="#E8007D"/>
+
+    <!-- Front end -->
+    <rect x="246" y="112" width="14" height="76" rx="6" fill="#1a1a1a"/>
+
+    <!-- Wheels -->
+    <circle cx="72"  cy="190" r="26" fill="#E8007D"/>
+    <circle cx="72"  cy="190" r="11" fill="#ffffff"/>
+    <circle cx="72"  cy="190" r="4"  fill="#E8007D"/>
+
+    <circle cx="208" cy="190" r="26" fill="#E8007D"/>
+    <circle cx="208" cy="190" r="11" fill="#ffffff"/>
+    <circle cx="208" cy="190" r="4"  fill="#E8007D"/>
+
+    <!-- Roof rack -->
+    <rect x="32" y="58" width="216" height="11" rx="4" fill="#1a1a1a"/>
+    <rect x="55"  y="58" width="5" height="11" fill="#1a1a1a"/>
+    <rect x="220" y="58" width="5" height="11" fill="#1a1a1a"/>
+
+    <!-- Koffer gross -->
+    <rect x="40" y="23" width="100" height="35" rx="6" fill="#1a1a1a"/>
+    <line x1="40" y1="40" x2="140" y2="40" stroke="#ffffff" stroke-width="2.5"/>
+    <rect x="82" y="15" width="16" height="9" rx="3" fill="#1a1a1a" stroke="#ffffff" stroke-width="2"/>
+
+    <!-- Koffer klein -->
+    <rect x="148" y="27" width="72" height="31" rx="6" fill="#1a1a1a"/>
+    <line x1="148" y1="42" x2="220" y2="42" stroke="#ffffff" stroke-width="2.5"/>
+    <rect x="176" y="19" width="16" height="9" rx="3" fill="#1a1a1a" stroke="#ffffff" stroke-width="2"/>
+
+  </g>
+
+</svg>
