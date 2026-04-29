@@ -1,0 +1,235 @@
+Project ahaappupSchema {
+  database_type: "SQLite"
+  Note: "1:1 table/column/key mapping from ahaappup dump (schema only)"
+}
+
+Table abmeldung {
+  idAbmeldung integer [pk, increment]
+  datumAbmeldung date
+  Mitarbeiter_idMitarbeiter integer [not null]
+  datumAnmeldung date
+  resturlaub integer
+}
+
+Table aenderungsmeldung {
+  idAenderungsmeldung integer [pk, increment]
+  datum date
+  stdWoche integer
+  Mitarbeiter_idMitarbeiter integer [not null]
+  urlaubsanspruch integer
+  bearbeitetVon integer [not null]
+}
+
+Table dokumente {
+  idDokumente integer [pk, increment]
+  url varchar(400)
+  uploadDatum date
+}
+
+Table eintritt {
+  idEintritt integer [pk, increment]
+  eintrittsdatum date
+  stdWoche integer
+  berufsjahr integer
+  einstufung varchar(45)
+  offenerUrlaub integer
+  Mitarbeiter_idMitarbeiter integer [not null]
+}
+
+Table event {
+  idEvent integer [pk, increment]
+  start date
+  ende date
+  titel varchar(45)
+  bemerkung text
+  klassen varchar(45)
+  urlaubAkzeptabel integer
+  inUrlaub integer [not null]
+  eventtyp varchar(45) [not null]
+  status integer [not null]
+  Standorte_idStandorte integer [not null]
+}
+
+Table klassen {
+  idKlassen integer [pk, increment]
+  klasse varchar(45)
+  Mitarbeiter_idMitarbeiter integer [not null]
+}
+
+Table mitarbeiter {
+  idMitarbeiter integer [pk, increment]
+  id varchar(30)
+  vorname varchar(45)
+  nachname varchar(45)
+  strasse varchar(45)
+  hausnummer varchar(45)
+  plz integer
+  ort varchar(45)
+  gebDatum date
+  svNummer varchar(45)
+  geschlecht varchar(45)
+  email varchar(100)
+  firmenTelefonnummer varchar(45)
+  privateTelefonnummer varchar(45)
+  iban varchar(45)
+  bic varchar(45)
+  position varchar(45)
+  weiterePosition varchar(45)
+  bemerkung text
+  status tinyint
+  password varchar(200)
+  berechtigung varchar(45)
+  urlaubsanspruch integer
+  aktWochenStd integer
+}
+
+Table mitarbeiter_has_dokumente {
+  Mitarbeiter_idMitarbeiter integer [not null]
+  Dokumente_idDokumente integer [not null]
+
+  indexes {
+    (Mitarbeiter_idMitarbeiter, Dokumente_idDokumente) [pk]
+  }
+}
+
+Table mitarbeiter_has_standorte {
+  Mitarbeiter_idMitarbeiter integer [not null]
+  Standorte_idStandorte integer [not null]
+  basis tinyint [not null]
+
+  indexes {
+    (Mitarbeiter_idMitarbeiter, Standorte_idStandorte) [pk]
+  }
+}
+
+Table standorte {
+  idStandorte integer [pk, increment]
+  ort varchar(150)
+  kostenstelle integer
+  strasse varchar(45)
+  hausnummer varchar(45)
+  plz integer
+}
+
+Table standort_vertritt_standort {
+  id integer [pk, increment]
+  idStandort integer [not null]
+  idStandortVertreter integer [not null]
+  prioritaet integer [not null]
+}
+
+Table taetigkeit {
+  idTaetigkeit integer [pk, increment]
+  datum date
+  idMitarbeiter integer [not null]
+  idTaetigkeitsart integer [not null]
+  stunden decimal(10,3)
+
+  indexes {
+    (datum, idMitarbeiter, idTaetigkeitsart) [unique, name: "uq_taetigkeit"]
+  }
+}
+
+Table taetigkeitsart {
+  idTaetigkeitsart integer [pk, increment]
+  bezeichnung varchar(45)
+}
+
+Table uebertrag {
+  uebertragUrlaub decimal(5,1)
+  uebertragUeberstunden decimal(5,1)
+  idMitarbeiter integer [not null]
+  datum date [not null]
+  angWochenStd decimal(10,3)
+  monatsSoll decimal(10,3)
+
+  indexes {
+    (idMitarbeiter, datum) [pk]
+  }
+}
+
+Table urlaub {
+  idUrlaub integer [pk, increment]
+  genemigt tinyint
+  beginn date
+  ende date
+  tageImUrlaub integer
+  beginnsdatumInWorten varchar(45)
+  endedatumInWorten varchar(45)
+  idVertretung integer
+  buero integer
+  idBueroVertretung integer
+  Mitarbeiter_idMitarbeiter integer [not null]
+}
+
+Table urlaubssperre {
+  idUrlaubssperre integer [pk, increment]
+  von date
+  bis date
+  ganzjaehrig integer
+}
+
+Table urlaub_event {
+  idUrlaub_idEvent integer [pk, increment]
+  idEvent integer [not null]
+  idUrlaub integer [not null]
+}
+
+Table viewformonthlyreport {
+  idMitarbeiter integer
+  datum date
+  A decimal(10,3)
+  C decimal(10,3)
+  E decimal(10,3)
+  F decimal(10,3)
+  D decimal(10,3)
+  THEORIE decimal(10,3)
+  nacht decimal(10,3)
+  wochenende decimal(10,3)
+  gr10proTag decimal(10,3)
+  Lektion decimal(10,3)
+  Regie decimal(10,3)
+  Pruefung decimal(10,3)
+  krank decimal(10,3)
+  Feiertag decimal(10,3)
+  Urlaub decimal(10,3)
+}
+
+Table vorlagen {
+  idVorlagen integer [pk, increment]
+  typ varchar(45)
+  url varchar(400)
+}
+
+Table zuschlag {
+  idMitarbeiter integer [not null]
+  datum date [not null]
+  gr10proTag decimal(10,3)
+  wochenende decimal(10,3)
+  nacht decimal(10,3)
+  A decimal(10,3)
+  C decimal(10,3)
+  E decimal(10,3)
+  F decimal(10,3)
+  D decimal(10,3)
+  THEORIE decimal(10,3)
+
+  indexes {
+    (idMitarbeiter, datum) [pk]
+  }
+}
+
+Ref: abmeldung.Mitarbeiter_idMitarbeiter > mitarbeiter.idMitarbeiter
+Ref: aenderungsmeldung.Mitarbeiter_idMitarbeiter > mitarbeiter.idMitarbeiter
+Ref: eintritt.Mitarbeiter_idMitarbeiter > mitarbeiter.idMitarbeiter
+Ref: event.Standorte_idStandorte > standorte.idStandorte
+Ref: klassen.Mitarbeiter_idMitarbeiter > mitarbeiter.idMitarbeiter
+Ref: mitarbeiter_has_dokumente.Mitarbeiter_idMitarbeiter > mitarbeiter.idMitarbeiter
+Ref: mitarbeiter_has_dokumente.Dokumente_idDokumente > dokumente.idDokumente
+Ref: mitarbeiter_has_standorte.Mitarbeiter_idMitarbeiter > mitarbeiter.idMitarbeiter
+Ref: mitarbeiter_has_standorte.Standorte_idStandorte > standorte.idStandorte
+Ref: taetigkeit.idMitarbeiter > mitarbeiter.idMitarbeiter
+Ref: taetigkeit.idTaetigkeitsart > taetigkeitsart.idTaetigkeitsart
+Ref: uebertrag.idMitarbeiter > mitarbeiter.idMitarbeiter
+Ref: urlaub.Mitarbeiter_idMitarbeiter > mitarbeiter.idMitarbeiter
+Ref: zuschlag.idMitarbeiter > mitarbeiter.idMitarbeiter

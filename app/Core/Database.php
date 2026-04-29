@@ -37,110 +37,226 @@ class Database {
     }
 
     private static function ensureSchemaUpToDate() {
-        $db = self::$instance;
-        $db->exec("
-            CREATE TABLE IF NOT EXISTS booking_blocked_periods (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                start_date DATE NOT NULL,
-                end_date DATE NOT NULL,
-                label VARCHAR,
-                created_by INTEGER,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS notifications (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                title VARCHAR NOT NULL,
-                message TEXT NOT NULL,
-                category VARCHAR NOT NULL DEFAULT 'info',
-                is_read BOOLEAN NOT NULL DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-            );
-
-            CREATE TABLE IF NOT EXISTS request_comments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                request_id INTEGER NOT NULL,
-                user_id INTEGER NOT NULL,
-                comment TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(request_id) REFERENCES vacation_requests(id) ON DELETE CASCADE,
-                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-            );
-
-            CREATE TABLE IF NOT EXISTS audit_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                actor_user_id INTEGER,
-                action VARCHAR NOT NULL,
-                entity_type VARCHAR NOT NULL,
-                entity_id INTEGER,
-                details TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(actor_user_id) REFERENCES users(id) ON DELETE SET NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS system_settings (
-                setting_key VARCHAR PRIMARY KEY,
-                setting_value VARCHAR NOT NULL
-            );
-        ");
-
-        $stmt = $db->prepare("INSERT OR IGNORE INTO system_settings (setting_key, setting_value) VALUES ('min_staff_available', '1')");
-        $stmt->execute();
+        self::$instance->exec("PRAGMA foreign_keys = ON;");
     }
 
     private static function initializeSchema() {
         $db = self::$instance;
         $schema = "
-        CREATE TABLE IF NOT EXISTS departments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name VARCHAR NOT NULL,
-            color VARCHAR NOT NULL DEFAULT '#3b82f6'
+        CREATE TABLE IF NOT EXISTS klassen (
+            idKlassen INTEGER PRIMARY KEY AUTOINCREMENT,
+            klasse TEXT,
+            Mitarbeiter_idMitarbeiter INTEGER NOT NULL,
+            FOREIGN KEY(Mitarbeiter_idMitarbeiter) REFERENCES mitarbeiter(idMitarbeiter)
         );
 
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            mnr VARCHAR UNIQUE NOT NULL,
-            firstname VARCHAR NOT NULL,
-            lastname VARCHAR NOT NULL,
-            email VARCHAR UNIQUE NOT NULL,
-            role VARCHAR NOT NULL CHECK(role IN ('CEO', 'Employee')),
-            department_id INTEGER,
-            custom_color VARCHAR,
-            vacation_entitlement_days INTEGER NOT NULL DEFAULT 25,
-            overtime_hours DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(department_id) REFERENCES departments(id) ON DELETE SET NULL
+        CREATE TABLE IF NOT EXISTS mitarbeiter (
+            idMitarbeiter INTEGER PRIMARY KEY AUTOINCREMENT,
+            id TEXT,
+            vorname TEXT,
+            nachname TEXT,
+            strasse TEXT,
+            hausnummer TEXT,
+            plz INTEGER,
+            ort TEXT,
+            gebDatum DATE,
+            svNummer TEXT,
+            geschlecht TEXT,
+            email TEXT,
+            firmenTelefonnummer TEXT,
+            privateTelefonnummer TEXT,
+            iban TEXT,
+            bic TEXT,
+            position TEXT,
+            weiterePosition TEXT,
+            bemerkung TEXT,
+            status INTEGER,
+            password TEXT,
+            berechtigung TEXT,
+            urlaubsanspruch INTEGER,
+            aktWochenStd INTEGER
         );
 
-        CREATE TABLE IF NOT EXISTS user_credentials (
-            user_id INTEGER PRIMARY KEY,
-            password_hash VARCHAR NOT NULL,
-            password_salt VARCHAR NOT NULL,
-            last_login TIMESTAMP,
-            must_change_password BOOLEAN DEFAULT 0,
-            reset_token VARCHAR,
-            reset_expires_at TIMESTAMP,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        CREATE TABLE IF NOT EXISTS dokumente (
+            idDokumente INTEGER PRIMARY KEY AUTOINCREMENT,
+            url TEXT,
+            uploadDatum DATE
         );
 
-        CREATE TABLE IF NOT EXISTS vacation_requests (
+        CREATE TABLE IF NOT EXISTS standorte (
+            idStandorte INTEGER PRIMARY KEY AUTOINCREMENT,
+            bezeichnung TEXT,
+            ort TEXT,
+            kostenstelle INTEGER,
+            strasse TEXT,
+            hausnummer TEXT,
+            plz INTEGER
+        );
+
+        CREATE TABLE IF NOT EXISTS mitarbeiter_has_dokumente (
+            Mitarbeiter_idMitarbeiter INTEGER NOT NULL,
+            Dokumente_idDokumente INTEGER NOT NULL,
+            PRIMARY KEY (Mitarbeiter_idMitarbeiter, Dokumente_idDokumente),
+            FOREIGN KEY(Mitarbeiter_idMitarbeiter) REFERENCES mitarbeiter(idMitarbeiter),
+            FOREIGN KEY(Dokumente_idDokumente) REFERENCES dokumente(idDokumente)
+        );
+
+        CREATE TABLE IF NOT EXISTS mitarbeiter_has_standorte (
+            Mitarbeiter_idMitarbeiter INTEGER NOT NULL,
+            Standorte_idStandorte INTEGER NOT NULL,
+            PRIMARY KEY (Mitarbeiter_idMitarbeiter, Standorte_idStandorte),
+            FOREIGN KEY(Mitarbeiter_idMitarbeiter) REFERENCES mitarbeiter(idMitarbeiter),
+            FOREIGN KEY(Standorte_idStandorte) REFERENCES standorte(idStandorte)
+        );
+
+        CREATE TABLE IF NOT EXISTS standort_vertritt_standort (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            approver_id INTEGER,
-            type VARCHAR NOT NULL DEFAULT 'vacation' CHECK(type IN ('vacation', 'overtime')),
-            start_date DATE NOT NULL,
-            end_date DATE NOT NULL,
-            net_days INTEGER NOT NULL DEFAULT 0,
-            deducted_hours DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-            status VARCHAR NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected', 'storno_requested', 'cancelled')),
-            admin_comment TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            decided_at TIMESTAMP,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY(approver_id) REFERENCES users(id) ON DELETE SET NULL
+            idStandort INTEGER NOT NULL,
+            idStandortVertreter INTEGER NOT NULL,
+            prioritaet INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS eintritt (
+            idEintritt INTEGER PRIMARY KEY AUTOINCREMENT,
+            eintrittsdatum DATE,
+            stdWoche INTEGER,
+            berufsjahr INTEGER,
+            einstufung TEXT,
+            offenerUrlaub INTEGER,
+            Mitarbeiter_idMitarbeiter INTEGER NOT NULL,
+            FOREIGN KEY(Mitarbeiter_idMitarbeiter) REFERENCES mitarbeiter(idMitarbeiter)
+        );
+
+        CREATE TABLE IF NOT EXISTS abmeldung (
+            idAbmeldung INTEGER PRIMARY KEY AUTOINCREMENT,
+            datumAbmeldung DATE,
+            Mitarbeiter_idMitarbeiter INTEGER NOT NULL,
+            datumAnmeldung DATE,
+            resturlaub INTEGER,
+            FOREIGN KEY(Mitarbeiter_idMitarbeiter) REFERENCES mitarbeiter(idMitarbeiter)
+        );
+
+        CREATE TABLE IF NOT EXISTS aenderungsmeldung (
+            idAenderungsmeldung INTEGER PRIMARY KEY AUTOINCREMENT,
+            datum DATE,
+            stdWoche INTEGER,
+            Mitarbeiter_idMitarbeiter INTEGER NOT NULL,
+            urlaubsanspruch INTEGER,
+            bearbeitetVon INTEGER NOT NULL,
+            FOREIGN KEY(Mitarbeiter_idMitarbeiter) REFERENCES mitarbeiter(idMitarbeiter),
+            FOREIGN KEY(bearbeitetVon) REFERENCES mitarbeiter(idMitarbeiter)
+        );
+
+        CREATE TABLE IF NOT EXISTS taetigkeitsart (
+            idTaetigkeitsart INTEGER PRIMARY KEY AUTOINCREMENT,
+            bezeichnung TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS taetigkeit (
+            idTaetigkeit INTEGER PRIMARY KEY AUTOINCREMENT,
+            datum DATE,
+            idMitarbeiter INTEGER NOT NULL,
+            idTaetigkeitsart INTEGER NOT NULL,
+            stunden NUMERIC,
+            FOREIGN KEY(idMitarbeiter) REFERENCES mitarbeiter(idMitarbeiter) ON DELETE CASCADE ON UPDATE CASCADE,
+            FOREIGN KEY(idTaetigkeitsart) REFERENCES taetigkeitsart(idTaetigkeitsart) ON DELETE CASCADE ON UPDATE CASCADE,
+            UNIQUE (datum, idMitarbeiter, idTaetigkeitsart)
+        );
+
+        CREATE TABLE IF NOT EXISTS event (
+            idEvent INTEGER PRIMARY KEY AUTOINCREMENT,
+            start DATE,
+            ende DATE,
+            titel TEXT,
+            bemerkung TEXT,
+            klassen TEXT,
+            urlaubAkzeptabel INTEGER,
+            inUrlaub INTEGER NOT NULL,
+            eventtyp TEXT NOT NULL,
+            status INTEGER NOT NULL,
+            Standorte_idStandorte INTEGER NOT NULL,
+            FOREIGN KEY(Standorte_idStandorte) REFERENCES standorte(idStandorte)
+        );
+
+        CREATE TABLE IF NOT EXISTS urlaub (
+            idUrlaub INTEGER PRIMARY KEY AUTOINCREMENT,
+            genemigt INTEGER,
+            beginn DATE,
+            ende DATE,
+            tageImUrlaub INTEGER,
+            beginnsdatumInWorten TEXT,
+            endedatumInWorten TEXT,
+            idVertretung INTEGER,
+            buero INTEGER,
+            idBueroVertretung INTEGER,
+            Mitarbeiter_idMitarbeiter INTEGER NOT NULL,
+            FOREIGN KEY(Mitarbeiter_idMitarbeiter) REFERENCES mitarbeiter(idMitarbeiter)
+        );
+
+        CREATE TABLE IF NOT EXISTS urlaubssperre (
+            idUrlaubssperre INTEGER PRIMARY KEY AUTOINCREMENT,
+            von DATE,
+            bis DATE,
+            ganzjaehrig INTEGER
+        );
+
+        CREATE TABLE IF NOT EXISTS urlaub_event (
+            idUrlaub_idEvent INTEGER PRIMARY KEY AUTOINCREMENT,
+            idEvent INTEGER NOT NULL,
+            idUrlaub INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS uebertrag (
+            uebertragUrlaub NUMERIC,
+            uebertragUeberstunden NUMERIC,
+            idMitarbeiter INTEGER NOT NULL,
+            datum DATE NOT NULL,
+            angWochenStd NUMERIC,
+            monatsSoll NUMERIC,
+            PRIMARY KEY (idMitarbeiter, datum),
+            FOREIGN KEY(idMitarbeiter) REFERENCES mitarbeiter(idMitarbeiter) ON DELETE CASCADE ON UPDATE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS vorlagen (
+            idVorlagen INTEGER PRIMARY KEY AUTOINCREMENT,
+            typ TEXT,
+            url TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS zuschlag (
+            idMitarbeiter INTEGER NOT NULL,
+            datum DATE NOT NULL,
+            gr10proTag NUMERIC,
+            wochenende NUMERIC,
+            nacht NUMERIC,
+            A NUMERIC,
+            C NUMERIC,
+            E NUMERIC,
+            F NUMERIC,
+            D NUMERIC,
+            THEORIE NUMERIC,
+            PRIMARY KEY (idMitarbeiter, datum),
+            FOREIGN KEY(idMitarbeiter) REFERENCES mitarbeiter(idMitarbeiter) ON DELETE CASCADE ON UPDATE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS viewformonthlyreport (
+            idMitarbeiter INTEGER,
+            datum DATE,
+            A NUMERIC,
+            C NUMERIC,
+            E NUMERIC,
+            F NUMERIC,
+            D NUMERIC,
+            THEORIE NUMERIC,
+            nacht NUMERIC,
+            wochenende NUMERIC,
+            gr10proTag NUMERIC,
+            Lektion NUMERIC,
+            Regie NUMERIC,
+            Pruefung NUMERIC,
+            krank NUMERIC,
+            Feiertag NUMERIC,
+            Urlaub NUMERIC
         );
         ";
         $db->exec($schema);
@@ -149,32 +265,66 @@ class Database {
     private static function seedData() {
         $db = self::$instance;
         
-        // Seed initial departments
-        $db->exec("INSERT INTO departments (name, color) VALUES ('Sales', '#f43f5e')"); // Rose
-        $db->exec("INSERT INTO departments (name, color) VALUES ('Engineering', '#3b82f6')"); // Blue
-        $db->exec("INSERT INTO departments (name, color) VALUES ('Marketing', '#8b5cf6')"); // Violet
+        // Minimal test data (few rows only)
+        $db->exec("
+            INSERT INTO mitarbeiter (idMitarbeiter, id, vorname, nachname, email, position, status, password, berechtigung, urlaubsanspruch, aktWochenStd)
+            VALUES
+            (1, 'A001', 'Admin', 'User', 'admin@firma.at', 'Leitung', 0, 'admin', 'Admin', 240, 40),
+            (2, 'M002', 'Lisa', 'Muster', 'lisa@firma.at', 'Mitarbeiter', 0, 'password', 'Mitarbeiter', 200, 38),
+            (3, 'M003', 'Tom', 'Beispiel', 'tom@firma.at', 'Mitarbeiter', 0, 'password', 'Mitarbeiter', 200, 40)
+        ");
 
-        // Insert dummy Admin (CEO)
-        $stmt = $db->prepare("INSERT INTO users (mnr, firstname, lastname, email, role) VALUES ('admin', 'Admin', 'User', 'admin', 'CEO')");
-        $stmt->execute();
-        $adminId = $db->lastInsertId();
+        $db->exec("INSERT INTO klassen (idKlassen, klasse, Mitarbeiter_idMitarbeiter) VALUES (1, 'Verwaltung', 1)");
+        $db->exec("INSERT INTO standorte (idStandorte, ort, kostenstelle, strasse, hausnummer, plz) VALUES (1, 'Wien', 1001, 'Hauptstrasse', '1', 1010)");
+        $db->exec("INSERT INTO taetigkeitsart (idTaetigkeitsart, bezeichnung) VALUES (1, 'Büro'), (2, 'Homeoffice')");
 
-        $adminHash = password_hash('admin', PASSWORD_DEFAULT);
-        $db->exec("INSERT INTO user_credentials (user_id, password_hash, password_salt) VALUES ($adminId, '$adminHash', '')");
+        $db->exec("
+            INSERT INTO eintritt (idEintritt, eintrittsdatum, stdWoche, berufsjahr, einstufung, offenerUrlaub, Mitarbeiter_idMitarbeiter)
+            VALUES
+            (1, '2020-01-01', 40, 6, 'KV Admin', 0, 1),
+            (2, '2022-03-01', 38, 4, 'KV Büro', 10, 2),
+            (3, '2021-06-15', 40, 5, 'KV Büro', 8, 3)
+        ");
 
-        // Insert dummy Employee
-        $stmt = $db->prepare("INSERT INTO users (mnr, firstname, lastname, email, role, department_id, vacation_entitlement_days, overtime_hours) VALUES ('E001', 'John', 'Doe', 'john.doe@zentime.com', 'Employee', 2, 30, 15.5)");
-        $stmt->execute();
-        $employeeId = $db->lastInsertId();
+        $db->exec("
+            INSERT INTO event (idEvent, start, ende, titel, bemerkung, klassen, urlaubAkzeptabel, inUrlaub, eventtyp, status, Standorte_idStandorte)
+            VALUES
+            (1, date('now','+12 day'), date('now','+12 day'), 'Team Event', 'Interne Abstimmung', 'Verwaltung', 1, 0, 'Theorie', 0, 1)
+        ");
 
-        $employeeHash = password_hash('password123', PASSWORD_DEFAULT);
-        $db->exec("INSERT INTO user_credentials (user_id, password_hash, password_salt) VALUES ($employeeId, '$employeeHash', '')");
+        $db->exec("
+            INSERT INTO urlaub (idUrlaub, genemigt, beginn, ende, tageImUrlaub, beginnsdatumInWorten, endedatumInWorten, idVertretung, buero, idBueroVertretung, Mitarbeiter_idMitarbeiter)
+            VALUES
+            (1, 0, date('now','+10 day'), date('now','+14 day'), 5, 'in 10 Tagen', 'in 14 Tagen', NULL, 1, NULL, 2),
+            (2, 1, date('now','+20 day'), date('now','+22 day'), 3, 'in 20 Tagen', 'in 22 Tagen', 1, 1, 1, 3)
+        ");
 
-        // Insert some initial requests
-        $db->exec("INSERT INTO vacation_requests (user_id, type, start_date, end_date, net_days, deducted_hours, status) VALUES ($employeeId, 'vacation', date('now', '+7 days'), date('now', '+14 days'), 5, 0, 'pending')");
-        $db->exec("INSERT INTO vacation_requests (user_id, approver_id, type, start_date, end_date, net_days, deducted_hours, status, decided_at) VALUES ($employeeId, $adminId, 'vacation', date('now', '-30 days'), date('now', '-25 days'), 4, 0, 'approved', CURRENT_TIMESTAMP)");
-        
-        // Sample Overtime request
-        $db->exec("INSERT INTO vacation_requests (user_id, approver_id, type, start_date, end_date, net_days, deducted_hours, status, decided_at) VALUES ($employeeId, $adminId, 'overtime', date('now', '-10 days'), date('now', '-10 days'), 0, 4.5, 'approved', CURRENT_TIMESTAMP)");
+        $db->exec("
+            INSERT INTO urlaubssperre (idUrlaubssperre, von, bis, ganzjaehrig)
+            VALUES
+            (1, date('now','+30 day'), date('now','+35 day'), 0)
+        ");
+
+        $db->exec("
+            INSERT INTO urlaub_event (idUrlaub_idEvent, idEvent, idUrlaub)
+            VALUES (1, 1, 2)
+        ");
+
+        $db->exec("
+            INSERT INTO taetigkeit (idTaetigkeit, datum, idMitarbeiter, idTaetigkeitsart, stunden)
+            VALUES
+            (1, date('now','-1 day'), 2, 1, 7.5),
+            (2, date('now','-1 day'), 3, 2, 8.0)
+        ");
+
+        $db->exec("
+            INSERT INTO uebertrag (uebertragUrlaub, uebertragUeberstunden, idMitarbeiter, datum, angWochenStd, monatsSoll)
+            VALUES (2.5, 4.0, 2, date('now','start of year'), 38.0, 152.0)
+        ");
+
+        $db->exec("
+            INSERT INTO zuschlag (idMitarbeiter, datum, gr10proTag, wochenende, nacht, A, C, E, F, D, THEORIE)
+            VALUES (2, date('now','-2 day'), 0.5, 0, 0, 0, 0, 0, 0, 0, 0.25)
+        ");
     }
 }
