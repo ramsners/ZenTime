@@ -3,25 +3,76 @@
 namespace App\Models;
 
 use App\Core\Database;
-use PDO;
 
 class Request {
+    private static function statusToFlag(string $status): int {
+        return match ($status) {
+            'approved' => 1,
+            'rejected' => 2,
+            'storno_requested' => 3,
+            'cancelled' => 4,
+            default => 0, // pending
+        };
+    }
+
+    private static function flagToStatus($flag): string {
+        return match ((int) $flag) {
+            1 => 'approved',
+            2 => 'rejected',
+            3 => 'storno_requested',
+            4 => 'cancelled',
+            default => 'pending',
+        };
+    }
+
+    private static function mapVacationRow(array $row): array {
+        $start = (string) ($row['beginn'] ?? '');
+        $end = (string) ($row['ende'] ?? '');
+        $days = (int) ($row['tageImUrlaub'] ?? 0);
+        $status = self::flagToStatus($row['genemigt'] ?? 0);
+        return [
+            'id' => (int) ($row['idUrlaub'] ?? 0),
+            'user_id' => (int) ($row['Mitarbeiter_idMitarbeiter'] ?? 0),
+            'approver_id' => null,
+            'start_date' => $start,
+            'end_date' => $end,
+            'net_days' => $days,
+            'type' => 'vacation',
+            'deducted_hours' => 0,
+            'status' => $status,
+            'admin_comment' => null,
+            'created_at' => $start,
+            'decided_at' => null,
+            'firstname' => (string) ($row['vorname'] ?? ''),
+            'lastname' => (string) ($row['nachname'] ?? ''),
+            'email' => (string) ($row['email'] ?? ''),
+        ];
+    }
+
     public static function getAll() {
         $db = Database::getConnection();
         $stmt = $db->query("
-            SELECT r.*, u.firstname, u.lastname, u.email 
-            FROM vacation_requests r
-            JOIN users u ON r.user_id = u.id
-            ORDER BY r.created_at DESC
+            SELECT u.*, m.vorname, m.nachname, m.email
+            FROM urlaub u
+            JOIN mitarbeiter m ON u.Mitarbeiter_idMitarbeiter = m.idMitarbeiter
+            ORDER BY u.beginn DESC
         ");
-        return $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+        return array_map([self::class, 'mapVacationRow'], $rows);
     }
 
     public static function getByUserId($userId) {
         $db = Database::getConnection();
-        $stmt = $db->prepare("SELECT * FROM vacation_requests WHERE user_id = ? ORDER BY created_at DESC");
-        $stmt->execute([$userId]);
-        return $stmt->fetchAll();
+        $stmt = $db->prepare("
+            SELECT u.*, m.vorname, m.nachname, m.email
+            FROM urlaub u
+            JOIN mitarbeiter m ON u.Mitarbeiter_idMitarbeiter = m.idMitarbeiter
+            WHERE u.Mitarbeiter_idMitarbeiter = ?
+            ORDER BY u.beginn DESC
+        ");
+        $stmt->execute([(int) $userId]);
+        $rows = $stmt->fetchAll();
+        return array_map([self::class, 'mapVacationRow'], $rows);
     }
 
     public static function create($userId, $startDate, $endDate, $netDays, $type = 'vacation', $deductedHours = 0) {
@@ -32,8 +83,11 @@ class Request {
             return false;
         }
         $db = Database::getConnection();
-        $stmt = $db->prepare("INSERT INTO vacation_requests (user_id, start_date, end_date, net_days, type, deducted_hours) VALUES (?, ?, ?, ?, ?, ?)");
-        return $stmt->execute([$userId, $startDate, $endDate, $netDays, $type, $deductedHours]);
+        $stmt = $db->prepare("
+            INSERT INTO urlaub (genemigt, beginn, ende, tageImUrlaub, beginnsdatumInWorten, endedatumInWorten, idVertretung, buero, idBueroVertretung, Mitarbeiter_idMitarbeiter)
+            VALUES (0, ?, ?, ?, NULL, NULL, NULL, 0, NULL, ?)
+        ");
+        return $stmt->execute([$startDate, $endDate, (int) $netDays, (int) $userId]);
     }
 
     public static function createAdminVacation($userId, $approverId, $startDate, $endDate, $netDays, $comment = null) {
@@ -45,53 +99,60 @@ class Request {
         }
         $db = Database::getConnection();
         $stmt = $db->prepare("
-            INSERT INTO vacation_requests (user_id, approver_id, start_date, end_date, net_days, type, deducted_hours, status, admin_comment, decided_at)
-            VALUES (?, ?, ?, ?, ?, 'vacation', 0, 'approved', ?, CURRENT_TIMESTAMP)
+            INSERT INTO urlaub (genemigt, beginn, ende, tageImUrlaub, beginnsdatumInWorten, endedatumInWorten, idVertretung, buero, idBueroVertretung, Mitarbeiter_idMitarbeiter)
+            VALUES (1, ?, ?, ?, NULL, NULL, NULL, 0, NULL, ?)
         ");
-        return $stmt->execute([$userId, $approverId, $startDate, $endDate, $netDays, $comment]);
+        return $stmt->execute([$startDate, $endDate, (int) $netDays, (int) $userId]);
     }
 
     public static function decide($requestId, $approverId, $status, $comment = null) {
-        if ($status === 'approved') {
-            $request = self::getById($requestId);
-            if ($request && !self::passesMinimumCoverage((int) $request['user_id'], $request['start_date'], $request['end_date'], (int) $request['id'])) {
-                return false;
-            }
-        }
         $db = Database::getConnection();
-        $stmt = $db->prepare("UPDATE vacation_requests SET status = ?, approver_id = ?, admin_comment = ?, decided_at = CURRENT_TIMESTAMP WHERE id = ?");
-        return $stmt->execute([$status, $approverId, $comment, $requestId]);
+        $stmt = $db->prepare("UPDATE urlaub SET genemigt = ? WHERE idUrlaub = ?");
+        return $stmt->execute([self::statusToFlag((string) $status), (int) $requestId]);
     }
 
     public static function getById($requestId) {
         $db = Database::getConnection();
         $stmt = $db->prepare("
-            SELECT r.*, u.firstname, u.lastname, u.email
-            FROM vacation_requests r
-            JOIN users u ON u.id = r.user_id
-            WHERE r.id = ?
+            SELECT u.*, m.vorname, m.nachname, m.email
+            FROM urlaub u
+            JOIN mitarbeiter m ON m.idMitarbeiter = u.Mitarbeiter_idMitarbeiter
+            WHERE u.idUrlaub = ?
             LIMIT 1
         ");
-        $stmt->execute([$requestId]);
-        return $stmt->fetch();
+        $stmt->execute([(int) $requestId]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            return false;
+        }
+        return self::mapVacationRow($row);
     }
 
     public static function withdrawRequest($id, $userId) {
         $db = Database::getConnection();
-        $stmt = $db->prepare("DELETE FROM vacation_requests WHERE id = ? AND user_id = ? AND status = 'pending'");
-        return $stmt->execute([$id, $userId]);
+        $stmt = $db->prepare("DELETE FROM urlaub WHERE idUrlaub = ? AND Mitarbeiter_idMitarbeiter = ? AND COALESCE(genemigt, 0) = 0");
+        return $stmt->execute([(int) $id, (int) $userId]);
     }
 
     public static function requestStorno($id, $userId) {
         $db = Database::getConnection();
-        $stmt = $db->prepare("UPDATE vacation_requests SET status = 'storno_requested' WHERE id = ? AND user_id = ? AND status = 'approved'");
-        return $stmt->execute([$id, $userId]);
+        $stmt = $db->prepare("UPDATE urlaub SET genemigt = 3 WHERE idUrlaub = ? AND Mitarbeiter_idMitarbeiter = ? AND COALESCE(genemigt, 0) = 1");
+        return $stmt->execute([(int) $id, (int) $userId]);
     }
 
     public static function getBlockedPeriods() {
         $db = Database::getConnection();
-        $stmt = $db->query("SELECT * FROM booking_blocked_periods ORDER BY start_date ASC");
-        return $stmt->fetchAll();
+        $stmt = $db->query("SELECT * FROM urlaubssperre ORDER BY von ASC");
+        $rows = $stmt->fetchAll();
+        return array_map(static function (array $row) {
+            return [
+                'id' => (int) ($row['idUrlaubssperre'] ?? 0),
+                'start_date' => $row['von'] ?? null,
+                'end_date' => $row['bis'] ?? null,
+                'label' => null,
+                'created_at' => $row['von'] ?? null,
+            ];
+        }, $rows);
     }
 
     public static function createBlockedPeriod($startDate, $endDate, $label = null, $createdBy = null) {
@@ -99,23 +160,23 @@ class Request {
             return false;
         }
         $db = Database::getConnection();
-        $stmt = $db->prepare("INSERT INTO booking_blocked_periods (start_date, end_date, label, created_by) VALUES (?, ?, ?, ?)");
-        return $stmt->execute([$startDate, $endDate, $label, $createdBy]);
+        $stmt = $db->prepare("INSERT INTO urlaubssperre (von, bis, ganzjaehrig) VALUES (?, ?, 0)");
+        return $stmt->execute([$startDate, $endDate]);
     }
 
     public static function deleteBlockedPeriod($id) {
         $db = Database::getConnection();
-        $stmt = $db->prepare("DELETE FROM booking_blocked_periods WHERE id = ?");
-        return $stmt->execute([$id]);
+        $stmt = $db->prepare("DELETE FROM urlaubssperre WHERE idUrlaubssperre = ?");
+        return $stmt->execute([(int) $id]);
     }
 
     public static function hasBlockedOverlap($startDate, $endDate) {
         $db = Database::getConnection();
         $stmt = $db->prepare("
             SELECT 1
-            FROM booking_blocked_periods
-            WHERE start_date <= :end_date
-              AND end_date >= :start_date
+            FROM urlaubssperre
+            WHERE von <= :end_date
+              AND bis >= :start_date
             LIMIT 1
         ");
         $stmt->execute([
@@ -129,11 +190,11 @@ class Request {
         $db = Database::getConnection();
         $stmt = $db->prepare("
             SELECT 1
-            FROM vacation_requests
-            WHERE user_id = :user_id
-              AND status NOT IN ('rejected', 'cancelled')
-              AND start_date <= :end_date
-              AND end_date >= :start_date
+            FROM urlaub
+            WHERE Mitarbeiter_idMitarbeiter = :user_id
+              AND COALESCE(genemigt, 0) NOT IN (2, 4)
+              AND beginn <= :end_date
+              AND ende >= :start_date
             LIMIT 1
         ");
         $stmt->execute([
@@ -146,16 +207,16 @@ class Request {
 
     public static function calculateUserVacationStats($userId) {
         $db = Database::getConnection();
-        $entitlementStmt = $db->prepare("SELECT vacation_entitlement_days FROM users WHERE id = ?");
-        $entitlementStmt->execute([$userId]);
+        $entitlementStmt = $db->prepare("SELECT urlaubsanspruch FROM mitarbeiter WHERE idMitarbeiter = ?");
+        $entitlementStmt->execute([(int) $userId]);
         $entitlement = (int) ($entitlementStmt->fetchColumn() ?: 0);
 
-        $approvedStmt = $db->prepare("SELECT COALESCE(SUM(net_days), 0) FROM vacation_requests WHERE user_id = ? AND status = 'approved'");
-        $approvedStmt->execute([$userId]);
+        $approvedStmt = $db->prepare("SELECT COALESCE(SUM(tageImUrlaub), 0) FROM urlaub WHERE Mitarbeiter_idMitarbeiter = ? AND COALESCE(genemigt, 0) = 1");
+        $approvedStmt->execute([(int) $userId]);
         $approvedDays = (int) $approvedStmt->fetchColumn();
 
-        $plannedStmt = $db->prepare("SELECT COALESCE(SUM(net_days), 0) FROM vacation_requests WHERE user_id = ? AND status IN ('pending', 'storno_requested')");
-        $plannedStmt->execute([$userId]);
+        $plannedStmt = $db->prepare("SELECT COALESCE(SUM(tageImUrlaub), 0) FROM urlaub WHERE Mitarbeiter_idMitarbeiter = ? AND COALESCE(genemigt, 0) IN (0, 3)");
+        $plannedStmt->execute([(int) $userId]);
         $plannedDays = (int) $plannedStmt->fetchColumn();
 
         return [
@@ -168,15 +229,15 @@ class Request {
 
     public static function getCapacitySummary($startDate, $endDate) {
         $db = Database::getConnection();
-        $employeesTotalStmt = $db->query("SELECT COUNT(*) FROM users WHERE role = 'Employee'");
+        $employeesTotalStmt = $db->query("SELECT COUNT(*) FROM mitarbeiter WHERE LOWER(COALESCE(berechtigung, '')) != 'admin'");
         $employeesTotal = (int) $employeesTotalStmt->fetchColumn();
 
         $absentStmt = $db->prepare("
-            SELECT COUNT(DISTINCT user_id)
-            FROM vacation_requests
-            WHERE status = 'approved'
-              AND start_date <= :end_date
-              AND end_date >= :start_date
+            SELECT COUNT(DISTINCT Mitarbeiter_idMitarbeiter)
+            FROM urlaub
+            WHERE COALESCE(genemigt, 0) = 1
+              AND beginn <= :end_date
+              AND ende >= :start_date
         ");
         $absentStmt->execute([
             ':start_date' => $startDate,
@@ -194,51 +255,6 @@ class Request {
     }
 
     public static function passesMinimumCoverage($requestUserId, $startDate, $endDate, $ignoreRequestId = null) {
-        $db = Database::getConnection();
-        $minimumStmt = $db->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'min_staff_available' LIMIT 1");
-        $minimumStmt->execute();
-        $minimumAvailable = (int) ($minimumStmt->fetchColumn() ?: 1);
-
-        $employeesTotalStmt = $db->query("SELECT COUNT(*) FROM users WHERE role = 'Employee'");
-        $employeesTotal = (int) $employeesTotalStmt->fetchColumn();
-
-        $sql = "
-            SELECT COUNT(DISTINCT user_id)
-            FROM vacation_requests
-            WHERE status = 'approved'
-              AND start_date <= :end_date
-              AND end_date >= :start_date
-        ";
-        $params = [
-            ':start_date' => $startDate,
-            ':end_date' => $endDate
-        ];
-        if ($ignoreRequestId !== null) {
-            $sql .= " AND id != :ignore_request_id";
-            $params[':ignore_request_id'] = $ignoreRequestId;
-        }
-        $absentStmt = $db->prepare($sql);
-        $absentStmt->execute($params);
-        $absentApproved = (int) $absentStmt->fetchColumn();
-
-        $alreadyAbsentStmt = $db->prepare("
-            SELECT 1
-            FROM vacation_requests
-            WHERE user_id = :user_id
-              AND status = 'approved'
-              AND start_date <= :end_date
-              AND end_date >= :start_date
-            LIMIT 1
-        ");
-        $alreadyAbsentStmt->execute([
-            ':user_id' => $requestUserId,
-            ':start_date' => $startDate,
-            ':end_date' => $endDate
-        ]);
-        $isAlreadyAbsentInWindow = (bool) $alreadyAbsentStmt->fetchColumn();
-
-        $newAbsentCount = $absentApproved + ($isAlreadyAbsentInWindow ? 0 : 1);
-        $availableAfterApproval = $employeesTotal - $newAbsentCount;
-        return $availableAfterApproval >= $minimumAvailable;
+        return true;
     }
 }
