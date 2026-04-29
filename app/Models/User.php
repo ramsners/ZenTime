@@ -34,8 +34,20 @@ class User {
         $stmt = $db->query("
             SELECT
                 m.*,
-                k.idKlassen AS department_id,
-                k.klasse AS department_name,
+                (
+                    SELECT k.idKlassen
+                    FROM klassen k
+                    WHERE k.Mitarbeiter_idMitarbeiter = m.idMitarbeiter
+                    ORDER BY k.idKlassen ASC
+                    LIMIT 1
+                ) AS department_id,
+                (
+                    SELECT k.klasse
+                    FROM klassen k
+                    WHERE k.Mitarbeiter_idMitarbeiter = m.idMitarbeiter
+                    ORDER BY k.idKlassen ASC
+                    LIMIT 1
+                ) AS department_name,
                 (
                     SELECT u.uebertragUeberstunden
                     FROM uebertrag u
@@ -44,7 +56,6 @@ class User {
                     LIMIT 1
                 ) AS overtime_hours
             FROM mitarbeiter m
-            LEFT JOIN klassen k ON k.Mitarbeiter_idMitarbeiter = m.idMitarbeiter
             ORDER BY m.nachname ASC, m.vorname ASC
         ");
         $rows = $stmt->fetchAll();
@@ -56,8 +67,20 @@ class User {
         $stmt = $db->prepare("
             SELECT
                 m.*,
-                k.idKlassen AS department_id,
-                k.klasse AS department_name,
+                (
+                    SELECT k.idKlassen
+                    FROM klassen k
+                    WHERE k.Mitarbeiter_idMitarbeiter = m.idMitarbeiter
+                    ORDER BY k.idKlassen ASC
+                    LIMIT 1
+                ) AS department_id,
+                (
+                    SELECT k.klasse
+                    FROM klassen k
+                    WHERE k.Mitarbeiter_idMitarbeiter = m.idMitarbeiter
+                    ORDER BY k.idKlassen ASC
+                    LIMIT 1
+                ) AS department_name,
                 (
                     SELECT u.uebertragUeberstunden
                     FROM uebertrag u
@@ -66,7 +89,6 @@ class User {
                     LIMIT 1
                 ) AS overtime_hours
             FROM mitarbeiter m
-            LEFT JOIN klassen k ON k.Mitarbeiter_idMitarbeiter = m.idMitarbeiter
             WHERE m.idMitarbeiter = ?
             LIMIT 1
         ");

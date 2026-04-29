@@ -273,7 +273,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'delete_employee' && $isAdmin) {
-        User::deleteEmployee($_POST['emp_id']);
+        $employeeIdToDelete = isset($_POST['emp_id']) ? (int) $_POST['emp_id'] : 0;
+        if ($employeeIdToDelete === (int) $currentUser['id']) {
+            header("Location: /?error=self_delete_forbidden");
+            exit;
+        }
+        User::deleteEmployee($employeeIdToDelete);
         header("Location: /?success=action_success");
         exit;
     }

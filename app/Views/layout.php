@@ -127,6 +127,7 @@ if (!isset($currentRole)) exit;
                     elseif ($_GET['error'] === 'blocked_exists') echo (($_SESSION['lang'] ?? 'en') === 'de' ? 'Dieser Sperrbereich existiert bereits oder überschneidet einen bestehenden.' : 'This blocked period already exists or overlaps an existing blocked period.');
                     elseif ($_GET['error'] === 'past_date') echo (($_SESSION['lang'] ?? 'en') === 'de' ? 'Urlaub kann nicht in der Vergangenheit beantragt werden.' : 'Vacation cannot be requested for past dates.');
                     elseif ($_GET['error'] === 'coverage_conflict') echo (($_SESSION['lang'] ?? 'en') === 'de' ? 'Genehmigung nicht möglich: Mindestbesetzung würde unterschritten.' : 'Approval failed: minimum staffing would be violated.');
+                    elseif ($_GET['error'] === 'self_delete_forbidden') echo (($_SESSION['lang'] ?? 'en') === 'de' ? 'Du kannst deinen eigenen Admin-Account nicht löschen.' : 'You cannot delete your own admin account.');
                     else echo "An error occurred.";
                 ?>
             </div>
@@ -546,10 +547,19 @@ if (!isset($currentRole)) exit;
                                 <div class="bg-white border border-emerald-200 rounded-xl p-3"><div class="text-xs uppercase font-bold text-emerald-700">Resturlaub</div><div class="text-xl font-bold text-emerald-900"><?= max(0, (int)$selectedTeamUser['vacation_entitlement_days'] - (int)($selectedTeamUserUsedDays ?? 0)) ?></div></div>
                             </div>
 
-                            <form method="POST" action="/?action=delete_employee" onsubmit="return confirm('Ensure you want to delete this employee?');" class="flex justify-end mb-3">
-                                <input type="hidden" name="emp_id" value="<?= $selectedTeamUser['id'] ?>">
-                                <button type="submit" class="text-red-600 font-bold text-sm"><?= I18n::get('ceo.delete') ?></button>
-                            </form>
+                            <?php $isOwnAdminAccount = ((int) $selectedTeamUser['id'] === (int) $currentUser['id']) && (($currentUser['role'] ?? '') === 'CEO'); ?>
+                            <?php if ($isOwnAdminAccount): ?>
+                                <div class="flex justify-end mb-3">
+                                    <span class="text-xs font-semibold text-emerald-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-1.5">
+                                        <?= (($_SESSION['lang'] ?? 'en') === 'de') ? 'Eigener Admin-Account kann nicht gelöscht werden.' : 'Own admin account cannot be deleted.' ?>
+                                    </span>
+                                </div>
+                            <?php else: ?>
+                                <form method="POST" action="/?action=delete_employee" onsubmit="return confirm('Ensure you want to delete this employee?');" class="flex justify-end mb-3">
+                                    <input type="hidden" name="emp_id" value="<?= $selectedTeamUser['id'] ?>">
+                                    <button type="submit" class="text-red-600 font-bold text-sm"><?= I18n::get('ceo.delete') ?></button>
+                                </form>
+                            <?php endif; ?>
 
                             <form method="POST" action="/?action=edit_employee" class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <input type="hidden" name="emp_id" value="<?= $selectedTeamUser['id'] ?>">
