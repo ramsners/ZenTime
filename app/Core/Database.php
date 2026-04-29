@@ -274,9 +274,47 @@ class Database {
             (3, 'M003', 'Tom', 'Beispiel', 'tom@firma.at', 'Mitarbeiter', 0, 'password', 'Mitarbeiter', 200, 40)
         ");
 
-        $db->exec("INSERT INTO klassen (idKlassen, klasse, Mitarbeiter_idMitarbeiter) VALUES (1, 'Verwaltung', 1)");
-        $db->exec("INSERT INTO standorte (idStandorte, ort, kostenstelle, strasse, hausnummer, plz) VALUES (1, 'Wien', 1001, 'Hauptstrasse', '1', 1010)");
-        $db->exec("INSERT INTO taetigkeitsart (idTaetigkeitsart, bezeichnung) VALUES (1, 'Büro'), (2, 'Homeoffice')");
+        $db->exec("
+            INSERT INTO klassen (idKlassen, klasse, Mitarbeiter_idMitarbeiter) VALUES
+            (1, 'A - Motorrad', 1),
+            (2, 'B - Personenkraftwagen', 1),
+            (3, 'C - Lastkraftwagen', 1),
+            (4, 'CE - Lastkraftwagen Anhänger', 1),
+            (5, 'D - Autobus', 1),
+            (6, 'EzB - Personenkraftwagen Anhänger', 1),
+            (7, 'F - Traktor', 1),
+            (8, 'L17-Schulung', 1),
+            (9, 'Perfektionsfahrten', 1)
+        ");
+        $db->exec("
+            INSERT INTO standorte (idStandorte, ort, kostenstelle, strasse, hausnummer, plz) VALUES
+            (1, 'Ybbs an der Donau', 11, 'Gewerbestraße', '14', 3370),
+            (2, 'Pöchlarn', 11, 'Regensburgerstraße', '14', 3380),
+            (3, 'Wieselburg an der Erlauf', 11, 'Anton-Fahrner-Gasse ', '2', 3250),
+            (4, 'Gmünd', 21, 'Bahnhofstraße', '21', 3950),
+            (5, 'Horn', 31, 'Am Kuhberg ', '5', 3580),
+            (6, 'Retz', 31, 'Höfleinerstraße ', '13', 2070),
+            (7, 'Waidhofen an der Thaya', 41, 'Unterer Stadtplatz', '38', 3340),
+            (8, 'Zwettl', 51, 'Kremserstraße', '52', 3910),
+            (9, 'St. Pölten', 61, 'Hofstatt', '5', 3100)
+        ");
+        $db->exec("
+            INSERT INTO standort_vertritt_standort (id, idStandort, idStandortVertreter, prioritaet) VALUES
+            (1, 1, 2, 1), (2, 1, 3, 1), (3, 2, 1, 1), (4, 2, 3, 1), (5, 3, 1, 1), (6, 3, 2, 1),
+            (7, 1, 9, 5), (8, 2, 9, 5), (9, 3, 9, 5), (10, 4, 8, 1), (11, 8, 4, 1), (12, 5, 6, 1),
+            (13, 6, 5, 1), (14, 7, 4, 5), (15, 1, 1, 1), (16, 2, 2, 1), (17, 3, 3, 1), (18, 4, 4, 1),
+            (19, 5, 5, 1), (20, 6, 6, 1), (21, 7, 7, 1), (22, 8, 8, 1), (23, 9, 9, 1), (24, 8, 7, 1),
+            (25, 7, 8, 1), (26, 4, 7, 1)
+        ");
+        $db->exec("
+            INSERT INTO taetigkeitsart (idTaetigkeitsart, bezeichnung) VALUES
+            (1, 'lektion'),
+            (3, 'regie'),
+            (4, 'pruefung'),
+            (5, 'krank'),
+            (6, 'feiertag'),
+            (7, 'urlaub')
+        ");
 
         $db->exec("
             INSERT INTO eintritt (idEintritt, eintrittsdatum, stdWoche, berufsjahr, einstufung, offenerUrlaub, Mitarbeiter_idMitarbeiter)
@@ -289,7 +327,7 @@ class Database {
         $db->exec("
             INSERT INTO event (idEvent, start, ende, titel, bemerkung, klassen, urlaubAkzeptabel, inUrlaub, eventtyp, status, Standorte_idStandorte)
             VALUES
-            (1, date('now','+12 day'), date('now','+12 day'), 'Team Event', 'Interne Abstimmung', 'Verwaltung', 1, 0, 'Theorie', 0, 1)
+            (1, date('now','+12 day'), date('now','+12 day'), 'Team Event', 'Interne Abstimmung', 'B - Personenkraftwagen', 1, 0, 'Theorie', 0, 1)
         ");
 
         $db->exec("
@@ -302,7 +340,7 @@ class Database {
         $db->exec("
             INSERT INTO urlaubssperre (idUrlaubssperre, von, bis, ganzjaehrig)
             VALUES
-            (1, date('now','+30 day'), date('now','+35 day'), 0)
+            (1, '2016-12-27', '2017-01-05', 0)
         ");
 
         $db->exec("
@@ -314,7 +352,7 @@ class Database {
             INSERT INTO taetigkeit (idTaetigkeit, datum, idMitarbeiter, idTaetigkeitsart, stunden)
             VALUES
             (1, date('now','-1 day'), 2, 1, 7.5),
-            (2, date('now','-1 day'), 3, 2, 8.0)
+            (2, date('now','-1 day'), 3, 3, 8.0)
         ");
 
         $db->exec("
