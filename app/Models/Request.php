@@ -102,7 +102,10 @@ class Request {
             INSERT INTO urlaub (genemigt, beginn, ende, tageImUrlaub, beginnsdatumInWorten, endedatumInWorten, idVertretung, buero, idBueroVertretung, Mitarbeiter_idMitarbeiter)
             VALUES (1, ?, ?, ?, NULL, NULL, NULL, 0, NULL, ?)
         ");
-        return $stmt->execute([$startDate, $endDate, (int) $netDays, (int) $userId]);
+        if (!$stmt->execute([$startDate, $endDate, (int) $netDays, (int) $userId])) {
+            return false;
+        }
+        return (int) $db->lastInsertId();
     }
 
     public static function decide($requestId, $approverId, $status, $comment = null) {

@@ -8,6 +8,7 @@ spl_autoload_register(function ($class) {
 
 use App\Models\User;
 use App\Models\Request as VacationRequest;
+use App\Models\RequestComment;
 use App\Models\Department;
 use App\Core\I18n;
 
@@ -216,12 +217,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'decide_request' && $isAdmin) {
         $requestId = $_POST['request_id'] ?? null;
         $status = $_POST['status'] ?? null;
-        $comment = $_POST['admin_comment'] ?? null;
+        $comment = trim((string) ($_POST['admin_comment'] ?? ''));
         if ($requestId && $status) {
             $ok = VacationRequest::decide($requestId, $currentUser['id'], $status, $comment);
             if (!$ok) {
                 header("Location: /?error=coverage_conflict");
                 exit;
+            }
+            if ($comment !== '') {
+                RequestComment::create((int) $requestId, (int) $currentUser['id'], $comment);
             }
             header("Location: /?success=decided");
             exit;
@@ -321,6 +325,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header("Location: /?error=request_conflict");
                 exit;
             }
+            if ($comment !== '') {
+                RequestComment::create((int) $created, (int) $currentUser['id'], $comment);
+            }
             header("Location: /?success=action_success");
             exit;
         }
@@ -340,7 +347,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'add_request_comment') {
-        header("Location: /?success=action_success");
+        $requestId = isset($_POST['request_id']) ? (int) $_POST['request_id'] : 0;
+        $comment = trim((string) ($_POST['comment'] ?? ''));
+        $request = $requestId > 0 ? VacationRequest::getById($requestId) : false;
+        $canComment = $request && ($isAdmin || (int) $request['user_id'] === (int) $currentUser['id']);
+        if ($canComment && $comment !== '') {
+            RequestComment::create($requestId, (int) $currentUser['id'], $comment);
+            header("Location: /?success=action_success");
+            exit;
+        }
+        header("Location: /?error=invalid_request");
         exit;
     }
 
@@ -398,7 +414,7 @@ $notificationList = [];
 $notificationUnreadCount = 0;
 $userVacationStats = VacationRequest::calculateUserVacationStats($currentUser['id']);
 $minStaffAvailable = 1;
-$requestCommentsById = [];
+$requestCommentsById = RequestComment::getByRequestIds(array_column($requests, 'id'));
 $recentAuditLogs = [];
 $capacitySummary = $isAdmin ? VacationRequest::getCapacitySummary(date('Y-m-d'), date('Y-m-d', strtotime('+30 days'))) : null;
 
@@ -414,9 +430,9 @@ foreach ($requests as $r) {
     // FullCalendar end bounds are exclusive
     $endDateStr = date('Y-m-d', strtotime($r['end_date'] . ' +1 day'));
     
-    $color = '#a3e635'; // lime-400
-    if ($r['status'] === 'pending') $color = '#fde047'; // yellow-300
-    if ($r['status'] === 'storno_requested') $color = '#fb923c'; // orange-400
+    $color = '#E8007D';
+    if ($r['status'] === 'pending') $color = '#FFD600';
+    if ($r['status'] === 'storno_requested') $color = '#1a1a1a';
     
     $fcEvents[] = [
         'id' => $r['id'],
@@ -425,7 +441,7 @@ foreach ($requests as $r) {
         'end' => $endDateStr,
         'backgroundColor' => $color,
         'borderColor' => $color,
-        'textColor' => ($r['status'] === 'pending') ? '#064e3b' : '#fff',
+        'textColor' => ($r['status'] === 'pending') ? '#1a1a1a' : '#fff',
         'allDay' => true,
         'extendedProps' => [
             'status' => $r['status'],
@@ -442,8 +458,8 @@ foreach ($blockedPeriods as $b) {
         'start' => $b['start_date'],
         'end' => $endDateStr,
         'display' => 'background',
-        'backgroundColor' => 'rgba(239, 68, 68, 0.22)',
-        'borderColor' => 'rgba(239, 68, 68, 0.45)',
+        'backgroundColor' => 'rgba(232, 0, 125, 0.16)',
+        'borderColor' => 'rgba(26, 26, 26, 0.35)',
         'allDay' => true,
         'extendedProps' => [
             'isBlocked' => true,

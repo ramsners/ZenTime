@@ -10,10 +10,95 @@ $isForgot = isset($_GET['forgot']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ZenTime | <?= I18n::get('login.welcome') ?></title>
+    <link rel="icon" type="image/svg+xml" href="/assets/icons/urlaubsplaner_icon.svg">
+    <script>
+        window.zentimeTailwindConfig = {
+            theme: {
+                extend: {
+                    colors: {
+                        emerald: {
+                            50: '#fffdf2',
+                            100: '#fff7cc',
+                            200: '#fff0a3',
+                            300: '#ffe866',
+                            400: '#FFD600',
+                            500: '#E8007D',
+                            600: '#4a4a4a',
+                            700: '#2d2d2d',
+                            800: '#1f1f1f',
+                            900: '#1a1a1a',
+                            950: '#111111'
+                        },
+                        lime: {
+                            50: '#fff0f7',
+                            100: '#ffd6eb',
+                            200: '#ffadd8',
+                            300: '#ff73bd',
+                            400: '#E8007D',
+                            500: '#c8006c',
+                            600: '#a60059',
+                            700: '#7d0044',
+                            800: '#56002f',
+                            900: '#33001c'
+                        },
+                        yellow: {
+                            50: '#fffdf2',
+                            100: '#fff7cc',
+                            200: '#fff0a3',
+                            300: '#ffe866',
+                            400: '#FFD600',
+                            500: '#e6c100',
+                            600: '#b89600',
+                            700: '#806900',
+                            800: '#4d3f00',
+                            900: '#1a1a1a'
+                        },
+                        green: {
+                            100: '#fff0f7',
+                            700: '#E8007D'
+                        },
+                        red: {
+                            50: '#fff0f7',
+                            100: '#ffd6eb',
+                            200: '#ffadd8',
+                            500: '#E8007D',
+                            600: '#c8006c',
+                            700: '#a60059',
+                            800: '#7d0044'
+                        },
+                        orange: {
+                            100: '#fff7cc',
+                            300: '#FFD600',
+                            400: '#E8007D',
+                            500: '#c8006c',
+                            600: '#1a1a1a',
+                            800: '#1a1a1a'
+                        },
+                        blue: {
+                            100: '#f3f3f3',
+                            700: '#1a1a1a'
+                        },
+                        pink: {
+                            50: '#fff0f7',
+                            100: '#ffd6eb',
+                            200: '#ffadd8',
+                            300: '#ff73bd',
+                            400: '#f52b95',
+                            500: '#E8007D',
+                            600: '#c8006c'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        window.tailwind.config = window.zentimeTailwindConfig;
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Outfit', sans-serif; }
+        body { font-family: 'Outfit', sans-serif; background-color: #fffdf2; color: #1a1a1a; }
     </style>
 </head>
 <body class="h-full bg-yellow-50 text-emerald-950 flex relative">
@@ -30,9 +115,10 @@ $isForgot = isset($_GET['forgot']);
         <div class="absolute top-[-5%] left-[-5%] w-96 h-96 bg-lime-200 rounded-full mix-blend-multiply opacity-50 blur-3xl"></div>
         <div class="absolute bottom-[-5%] right-[-5%] w-96 h-96 bg-yellow-300 rounded-full mix-blend-multiply opacity-50 blur-3xl"></div>
         
-        <img src="/img/lemongrass.png" alt="Relaxing Lemongrass" class="absolute inset-0 w-full h-full object-cover z-10 opacity-80" />
+        <img src="/img/lemongrass.png" alt="Relaxing Lemongrass" class="absolute inset-0 w-full h-full object-cover z-10 opacity-25 grayscale mix-blend-multiply" />
         
-        <div class="absolute inset-0 bg-yellow-900/10 z-20"></div>
+        <div class="absolute inset-0 bg-yellow-400/25 z-20"></div>
+        <div class="absolute inset-0 bg-lime-400/10 z-20 mix-blend-multiply"></div>
         
         <div class="relative z-30 p-12 text-center bg-white/60 backdrop-blur-md m-8 rounded-3xl border border-white/50 shadow-xl">
             <h1 class="text-4xl font-bold text-emerald-900 mb-4 tracking-tight"><?= I18n::get('login.title') ?></h1>
@@ -44,9 +130,7 @@ $isForgot = isset($_GET['forgot']);
     <div class="w-full lg:w-1/2 flex items-center justify-center p-8 bg-yellow-50 relative">
         <div class="max-w-md w-full space-y-8 bg-white p-10 rounded-3xl shadow-xl shadow-lime-900/5 relative z-10 border border-yellow-100/50">
             <div class="text-center">
-                <div class="mx-auto w-16 h-16 bg-gradient-to-tr from-lime-400 to-yellow-300 rounded-2xl flex justify-center items-center mb-6 shadow-lg shadow-lime-400/30">
-                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M13 8c0-2.76-2.46-5-5.5-5S2 5.24 2 8h2l1-1 1 1h4"></path><path d="M13 7.14A5.82 5.82 0 0 1 16.5 6c3.04 0 5.5 2.24 5.5 5h-3l-1-1-1 1h-3"></path><path d="M5.89 9.71c-1.15 1.47-1.89 3.17-1.89 5.29A7.1 7.1 0 0 0 7 20"></path><path d="M14.11 9.71c1.15 1.47 1.89 3.17 1.89 5.29A7.1 7.1 0 0 1 13 20"></path><path d="M10.8 11c.5 0 .9.4.9 1v9"></path><path d="M8 22h4"></path></svg>
-                </div>
+                <img src="/assets/icons/urlaubsplaner_icon.svg" alt="Urlaubsplaner" class="mx-auto mb-6 h-16 w-16 rounded-2xl shadow-lg shadow-lime-400/30">
                 <h2 class="text-3xl font-bold text-emerald-900 tracking-tight">ZenTime</h2>
                 <?php if ($isReset): ?>
                     <p class="mt-2 text-emerald-600"><?= I18n::get('newpw.title') ?></p>

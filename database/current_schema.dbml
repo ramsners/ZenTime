@@ -162,6 +162,14 @@ Table urlaub {
   Mitarbeiter_idMitarbeiter integer [not null]
 }
 
+Table request_comments {
+  id integer [pk, increment]
+  request_id integer [not null]
+  user_id integer [not null]
+  comment text [not null]
+  created_at datetime
+}
+
 Table urlaubssperre {
   idUrlaubssperre integer [pk, increment]
   von date
@@ -232,4 +240,6 @@ Ref: taetigkeit.idMitarbeiter > mitarbeiter.idMitarbeiter
 Ref: taetigkeit.idTaetigkeitsart > taetigkeitsart.idTaetigkeitsart
 Ref: uebertrag.idMitarbeiter > mitarbeiter.idMitarbeiter
 Ref: urlaub.Mitarbeiter_idMitarbeiter > mitarbeiter.idMitarbeiter
+Ref: request_comments.request_id > urlaub.idUrlaub
+Ref: request_comments.user_id > mitarbeiter.idMitarbeiter
 Ref: zuschlag.idMitarbeiter > mitarbeiter.idMitarbeiter

@@ -8,20 +8,105 @@ if (!isset($currentRole)) exit;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ZenTime | Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/icons/urlaubsplaner_icon.svg">
+    <script>
+        window.zentimeTailwindConfig = {
+            theme: {
+                extend: {
+                    colors: {
+                        emerald: {
+                            50: '#fffdf2',
+                            100: '#fff7cc',
+                            200: '#fff0a3',
+                            300: '#ffe866',
+                            400: '#FFD600',
+                            500: '#E8007D',
+                            600: '#4a4a4a',
+                            700: '#2d2d2d',
+                            800: '#1f1f1f',
+                            900: '#1a1a1a',
+                            950: '#111111'
+                        },
+                        lime: {
+                            50: '#fff0f7',
+                            100: '#ffd6eb',
+                            200: '#ffadd8',
+                            300: '#ff73bd',
+                            400: '#E8007D',
+                            500: '#c8006c',
+                            600: '#a60059',
+                            700: '#7d0044',
+                            800: '#56002f',
+                            900: '#33001c'
+                        },
+                        yellow: {
+                            50: '#fffdf2',
+                            100: '#fff7cc',
+                            200: '#fff0a3',
+                            300: '#ffe866',
+                            400: '#FFD600',
+                            500: '#e6c100',
+                            600: '#b89600',
+                            700: '#806900',
+                            800: '#4d3f00',
+                            900: '#1a1a1a'
+                        },
+                        green: {
+                            100: '#fff0f7',
+                            700: '#E8007D'
+                        },
+                        red: {
+                            50: '#fff0f7',
+                            100: '#ffd6eb',
+                            200: '#ffadd8',
+                            500: '#E8007D',
+                            600: '#c8006c',
+                            700: '#a60059',
+                            800: '#7d0044'
+                        },
+                        orange: {
+                            100: '#fff7cc',
+                            300: '#FFD600',
+                            400: '#E8007D',
+                            500: '#c8006c',
+                            600: '#1a1a1a',
+                            800: '#1a1a1a'
+                        },
+                        blue: {
+                            100: '#f3f3f3',
+                            700: '#1a1a1a'
+                        },
+                        pink: {
+                            50: '#fff0f7',
+                            100: '#ffd6eb',
+                            200: '#ffadd8',
+                            300: '#ff73bd',
+                            400: '#f52b95',
+                            500: '#E8007D',
+                            600: '#c8006c'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        window.tailwind.config = window.zentimeTailwindConfig;
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js'></script>
     <style>
-        body { font-family: 'Outfit', sans-serif; background-color: #fefce8; color: #064e3b; }
-        .glass { background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(163, 230, 53, 0.3); }
-        .fc-toolbar-title { font-weight: 700 !important; color: #064e3b; font-family: 'Outfit', sans-serif;}
-        .fc-button-primary { background-color: #a3e635 !important; border-color: #84cc16 !important; color: #064e3b !important; font-weight: bold !important; text-transform: capitalize; }
-        .fc-button-primary:hover { background-color: #84cc16 !important; }
+        body { font-family: 'Outfit', sans-serif; background-color: #fffdf2; color: #1a1a1a; }
+        .glass { background: rgba(255, 255, 255, 0.72); backdrop-filter: blur(12px); border: 1px solid rgba(232, 0, 125, 0.26); }
+        .fc-toolbar-title { font-weight: 700 !important; color: #1a1a1a; font-family: 'Outfit', sans-serif;}
+        .fc-button-primary { background-color: #FFD600 !important; border-color: #1a1a1a !important; color: #1a1a1a !important; font-weight: bold !important; text-transform: capitalize; }
+        .fc-button-primary:hover { background-color: #E8007D !important; color: #ffffff !important; }
         .fc-day-today { background-color: transparent !important; }
         .fc-day-today .fc-daygrid-day-number {
-            background-color: #dcfce7;
-            border: 1px solid #86efac;
+            background-color: #FFD600;
+            border: 1px solid #E8007D;
             border-radius: 9999px;
             width: 1.75rem;
             height: 1.75rem;
@@ -30,8 +115,8 @@ if (!isset($currentRole)) exit;
             justify-content: center;
             font-weight: 700;
         }
-        .fc-col-header-cell-cushion { color: #064e3b !important; }
-        .fc-daygrid-day-number { color: #064e3b !important; }
+        .fc-col-header-cell-cushion { color: #1a1a1a !important; }
+        .fc-daygrid-day-number { color: #1a1a1a !important; }
         .fc-event { border: none !important; border-radius: 4px; padding: 2px 4px; font-weight: 600; font-size: 0.75rem; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;}
     </style>
 </head>
@@ -64,48 +149,66 @@ if (!isset($currentRole)) exit;
     </div>
     <?php endif; ?>
 
-    <!-- Navigation -->
-    <nav class="relative z-10 border-b border-lime-200/50 bg-white/70 backdrop-blur-lg px-6 py-4 flex flex-wrap gap-4 justify-between items-center shadow-sm">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-lime-400 to-yellow-300 flex items-center justify-center shadow-md shadow-lime-400/20">
-                <svg class="w-6 h-6 text-emerald-900" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M13 8c0-2.76-2.46-5-5.5-5S2 5.24 2 8h2l1-1 1 1h4"></path><path d="M13 7.14A5.82 5.82 0 0 1 16.5 6c3.04 0 5.5 2.24 5.5 5h-3l-1-1-1 1h-3"></path><path d="M5.89 9.71c-1.15 1.47-1.89 3.17-1.89 5.29A7.1 7.1 0 0 0 7 20"></path><path d="M14.11 9.71c1.15 1.47 1.89 3.17 1.89 5.29A7.1 7.1 0 0 1 13 20"></path><path d="M10.8 11c.5 0 .9.4.9 1v9"></path><path d="M8 22h4"></path></svg>
-            </div>
-            <span class="text-2xl font-bold tracking-tight text-emerald-900">Zen<span class="text-lime-600">Time</span></span>
-        </div>
-        
-        <div class="flex items-center gap-4 md:gap-6">
-            <!-- Improved Greeting -->
-            <div class="hidden sm:flex items-center gap-2.5 bg-yellow-50/80 pr-4 pl-1.5 py-1.5 rounded-full border border-yellow-200 shadow-sm">
-                <div class="w-7 h-7 rounded-full bg-lime-400 flex items-center justify-center text-emerald-900 font-bold text-xs uppercase shadow-inner">
-                    <?= substr(htmlspecialchars($currentUser['firstname']), 0, 1) ?>
+    <div class="relative z-10 flex min-h-screen w-full flex-col lg:flex-row" x-data="{ tab: '<?= (isset($_GET['tab']) && $_GET['tab'] === 'team') ? 'team' : 'operations' ?>' }">
+        <aside class="w-full border-b border-lime-200/60 bg-white/80 p-4 shadow-sm backdrop-blur-lg lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:flex-none lg:border-b-0 lg:border-r lg:p-6">
+            <div class="flex h-full flex-col gap-5">
+                <div class="flex items-center gap-3">
+                    <img src="/assets/icons/urlaubsplaner_icon.svg" alt="Urlaubsplaner" class="h-12 w-12 rounded-xl shadow-md shadow-lime-400/20">
+                    <div>
+                        <span class="block text-2xl font-bold tracking-tight text-emerald-900">Zen<span class="text-lime-600">Time</span></span>
+                        <span class="text-xs font-bold uppercase tracking-wider text-emerald-600/70"><?= in_array($currentRole, ['CEO', 'Admin'], true) ? 'Admin Dashboard' : 'Dashboard' ?></span>
+                    </div>
                 </div>
-                <div class="flex flex-col">
-                    <span class="text-[10px] uppercase tracking-wider font-bold text-emerald-600/70 leading-none"><?= I18n::get('nav.hi') ?></span>
-                    <span class="text-sm font-bold text-emerald-900 leading-none mt-0.5"><?= htmlspecialchars($currentUser['firstname']) ?></span>
+
+                <nav class="flex flex-wrap gap-2 lg:flex-col" aria-label="Dashboard Navigation">
+                    <?php if (in_array($currentRole, ['CEO', 'Admin'], true)): ?>
+                        <button id="ceo-requests-tab-btn" type="button" @click="tab = 'operations'; setTimeout(() => window.dispatchEvent(new Event('resize')), 100);" :class="tab === 'operations' ? 'bg-lime-400 text-emerald-950 shadow-sm' : 'bg-yellow-50 text-emerald-700 hover:bg-white'" class="flex items-center justify-between rounded-xl border border-lime-100 px-4 py-3 text-sm font-bold transition-all lg:w-full">
+                            <span>Kalender & Genehmigungen</span>
+                            <span class="text-lime-700">›</span>
+                        </button>
+                        <button type="button" @click="tab = 'team'" :class="tab === 'team' ? 'bg-lime-400 text-emerald-950 shadow-sm' : 'bg-yellow-50 text-emerald-700 hover:bg-white'" class="flex items-center justify-between rounded-xl border border-lime-100 px-4 py-3 text-sm font-bold transition-all lg:w-full">
+                            <span>Team & Stammdaten</span>
+                            <span class="text-lime-700">›</span>
+                        </button>
+                    <?php else: ?>
+                        <a href="#employee-plan" class="rounded-xl border border-lime-100 bg-yellow-50 px-4 py-3 text-sm font-bold text-emerald-700 transition-all hover:bg-white lg:w-full">Urlaub planen</a>
+                        <a href="#employee-overview" class="rounded-xl border border-lime-100 bg-yellow-50 px-4 py-3 text-sm font-bold text-emerald-700 transition-all hover:bg-white lg:w-full">Meine Anträge</a>
+                        <a href="#employee-comments" class="rounded-xl border border-lime-100 bg-yellow-50 px-4 py-3 text-sm font-bold text-emerald-700 transition-all hover:bg-white lg:w-full">Kommentarverlauf</a>
+                    <?php endif; ?>
+                </nav>
+
+                <div class="mt-auto grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                    <div class="flex items-center justify-between gap-2 rounded-xl border border-yellow-200 bg-white px-3 py-2 text-sm">
+                        <span class="font-semibold text-emerald-700">Inbox</span>
+                        <span class="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-lime-400 text-emerald-900 font-bold text-xs"><?= (int)($notificationUnreadCount ?? 0) ?></span>
+                    </div>
+                    <div class="flex items-center justify-center gap-2 rounded-xl border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm">
+                        <a href="?lang=en" class="<?= ($_SESSION['lang'] ?? 'en') === 'en' ? 'font-bold text-lime-600' : 'text-emerald-600' ?>">EN</a>
+                        <span class="text-emerald-300">|</span>
+                        <a href="?lang=de" class="<?= ($_SESSION['lang'] ?? 'en') === 'de' ? 'font-bold text-lime-600' : 'text-emerald-600' ?>">DE</a>
+                    </div>
+                    <div class="flex flex-col gap-3 rounded-2xl border border-yellow-200 bg-yellow-50/80 p-3 shadow-sm sm:col-span-2 lg:col-span-1">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-full bg-lime-400 flex items-center justify-center text-emerald-900 font-bold text-sm uppercase shadow-inner">
+                                <?= substr(htmlspecialchars($currentUser['firstname']), 0, 1) ?>
+                            </div>
+                            <div class="min-w-0">
+                                <span class="block text-[10px] uppercase tracking-wider font-bold text-emerald-600/70 leading-none"><?= I18n::get('nav.hi') ?></span>
+                                <span class="block truncate text-sm font-bold text-emerald-900 mt-0.5"><?= htmlspecialchars($currentUser['firstname'] . ' ' . $currentUser['lastname']) ?></span>
+                                <span class="block truncate text-xs text-emerald-700"><?= htmlspecialchars($currentUser['email']) ?></span>
+                            </div>
+                        </div>
+                        <a href="/?action=logout" class="flex items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-600 transition-colors hover:bg-red-50">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                            <span><?= I18n::get('nav.logout') ?></span>
+                        </a>
+                    </div>
                 </div>
             </div>
+        </aside>
 
-            <div class="hidden md:flex items-center gap-2 bg-white border border-yellow-200 rounded-full px-3 py-1.5 text-sm">
-                <span class="font-semibold text-emerald-700">Inbox</span>
-                <span class="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-lime-400 text-emerald-900 font-bold text-xs"><?= (int)($notificationUnreadCount ?? 0) ?></span>
-            </div>
-            
-            <!-- Language Toggle -->
-            <div class="flex gap-2 bg-yellow-50 px-3 py-1.5 rounded-full border border-yellow-200 text-sm">
-                <a href="?lang=en" class="<?= ($_SESSION['lang'] ?? 'en') === 'en' ? 'font-bold text-lime-600' : 'text-emerald-600' ?>">EN</a>
-                <span class="text-emerald-300">|</span>
-                <a href="?lang=de" class="<?= ($_SESSION['lang'] ?? 'en') === 'de' ? 'font-bold text-lime-600' : 'text-emerald-600' ?>">DE</a>
-            </div>
-
-            <a href="/?action=logout" class="flex items-center gap-1.5 text-sm font-semibold text-emerald-700 hover:text-red-500 transition-colors bg-white border border-yellow-200 px-3 py-2 rounded-xl">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                <span class="hidden sm:inline"><?= I18n::get('nav.logout') ?></span>
-            </a>
-        </div>
-    </nav>
-
-    <!-- Main Content -->
-    <main class="relative z-10 flex-1 max-w-7xl mx-auto w-full p-6 lg:p-8 flex flex-col gap-8">
+        <!-- Main Content -->
+        <main class="relative z-10 flex-1 w-full p-4 sm:p-6 lg:p-8 flex flex-col gap-8 overflow-x-hidden">
         
         <?php if (isset($_GET['success'])): ?>
             <div class="bg-lime-50 border border-lime-200 text-lime-800 px-4 py-3 rounded-xl text-sm flex items-center shadow-sm mb-4">
@@ -135,7 +238,7 @@ if (!isset($currentRole)) exit;
 
         <?php if ($currentRole === 'Employee'): ?>
             <!-- EMPLOYEE VIEW -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div id="employee-plan" class="grid grid-cols-1 lg:grid-cols-3 gap-8 scroll-mt-4">
                 <div class="lg:col-span-1">
                     <div class="bg-white rounded-3xl p-8 shadow-xl shadow-lime-900/5 relative overflow-hidden border border-lime-100">
                         <div class="absolute top-0 right-0 w-32 h-32 bg-yellow-100 rounded-bl-full -z-10 mix-blend-multiply opacity-50"></div>
@@ -253,7 +356,7 @@ if (!isset($currentRole)) exit;
                     </div>
                 </div>
 
-                <div class="bg-white rounded-3xl p-6 shadow-xl shadow-lime-900/5 border border-lime-100">
+                <div id="employee-comments" class="bg-white rounded-3xl p-6 shadow-xl shadow-lime-900/5 border border-lime-100 scroll-mt-4">
                     <h3 class="text-xl font-bold text-emerald-900 mb-4">Kommentarverlauf</h3>
                     <div class="space-y-4">
                         <?php foreach ($requests as $req): ?>
@@ -301,16 +404,7 @@ if (!isset($currentRole)) exit;
 
         <?php elseif (in_array($currentRole, ['CEO', 'Admin'], true)): ?>
             <!-- ADMIN VIEW -->
-            <div x-data="{ tab: '<?= (isset($_GET['tab']) && $_GET['tab'] === 'team') ? 'team' : 'operations' ?>' }">
-                <div class="flex flex-wrap gap-4 mb-8">
-                    <button id="ceo-requests-tab-btn" @click="tab = 'operations'; setTimeout(() => window.dispatchEvent(new Event('resize')), 100);" :class="tab === 'operations' ? 'bg-lime-400 text-emerald-900 shadow-md shadow-lime-400/30' : 'bg-white text-emerald-700 border border-lime-100'" class="px-6 py-2.5 rounded-xl font-bold tracking-tight transition-all">
-                        Ops Board
-                    </button>
-                    <button @click="tab = 'team'" :class="tab === 'team' ? 'bg-lime-400 text-emerald-900 shadow-md shadow-lime-400/30' : 'bg-white text-emerald-700 border border-lime-100'" class="px-6 py-2.5 rounded-xl font-bold tracking-tight transition-all">
-                        <?= I18n::get('ceo.team') ?>
-                    </button>
-                </div>
-
+            <div>
                 <!-- OPERATIONS TAB -->
                 <div x-show="tab === 'operations'" class="space-y-8">
                     <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
@@ -400,7 +494,7 @@ if (!isset($currentRole)) exit;
                                     <input id="admin-vacation-end-date" type="date" name="end_date" min="<?= date('Y-m-d') ?>" required class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2.5 text-emerald-900 outline-none">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold text-emerald-800 mb-1">Kommentar (optional)</label>
+                                    <label class="block text-sm font-semibold text-emerald-800 mb-1">Kommentar im Verlauf (optional)</label>
                                     <input type="text" name="admin_comment" class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2.5 text-emerald-900 outline-none">
                                 </div>
                                 <button type="submit" class="w-full bg-lime-400 hover:bg-lime-500 text-emerald-900 font-bold py-2.5 rounded-xl">Urlaubszeit buchen</button>
@@ -418,7 +512,7 @@ if (!isset($currentRole)) exit;
                                     <input type="hidden" id="calendar-selected-request-id" name="request_id" value="">
                                     <input type="hidden" id="calendar-selected-action-decline-value" value="rejected">
                                     <input type="hidden" id="calendar-selected-action-approve-value" value="approved">
-                                    <input type="text" name="admin_comment" placeholder="Optional comment..." class="w-full bg-white border border-yellow-200 rounded-xl px-4 py-2.5 text-sm text-emerald-900 outline-none">
+                                    <input type="text" name="admin_comment" placeholder="Kommentar zur Entscheidung (optional)" class="w-full bg-white border border-yellow-200 rounded-xl px-4 py-2.5 text-sm text-emerald-900 outline-none">
                                     <div class="grid grid-cols-2 gap-2">
                                         <button type="submit" id="calendar-event-decline-btn" name="status" value="rejected" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-2 rounded-xl text-sm font-bold"><?= I18n::get('ceo.decline') ?></button>
                                         <button type="submit" id="calendar-event-approve-btn" name="status" value="approved" class="bg-lime-400 hover:bg-lime-500 text-emerald-900 py-2 rounded-xl text-sm font-bold"><?= I18n::get('ceo.approve') ?></button>
@@ -471,7 +565,7 @@ if (!isset($currentRole)) exit;
 
                                 <form action="/?action=decide_request" method="POST" class="mt-auto space-y-3 relative z-10">
                                     <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
-                                    <input type="text" name="admin_comment" placeholder="Optional comment..." class="w-full bg-white border border-yellow-200 rounded-xl px-4 py-2.5 text-sm text-emerald-900 focus:ring-2 focus:ring-lime-400 outline-none transition-all placeholder:text-emerald-300">
+                                    <input type="text" name="admin_comment" placeholder="Kommentar zur Entscheidung (optional)" class="w-full bg-white border border-yellow-200 rounded-xl px-4 py-2.5 text-sm text-emerald-900 focus:ring-2 focus:ring-lime-400 outline-none transition-all placeholder:text-emerald-300">
                                     <div class="flex gap-3">
                                         <?php if ($isStorno): ?>
                                             <!-- Approving Storno = Cancelled -->
@@ -493,11 +587,9 @@ if (!isset($currentRole)) exit;
                                             <?= htmlspecialchars($c['comment']) ?>
                                         </div>
                                     <?php endforeach; ?>
-                                    <form method="POST" action="/?action=add_request_comment" class="flex gap-2">
-                                        <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
-                                        <input type="text" name="comment" required class="flex-1 bg-white border border-yellow-200 rounded-lg px-2 py-1.5 text-xs text-emerald-900 outline-none" placeholder="Kommentar hinzufügen...">
-                                        <button type="submit" class="bg-lime-400 text-emerald-900 px-2 py-1.5 rounded-lg text-xs font-bold">Senden</button>
-                                    </form>
+                                    <?php if (empty($requestCommentsById[$req['id']] ?? [])): ?>
+                                        <div class="text-xs text-emerald-600">Noch keine Kommentare. Der optionale Entscheidungskommentar erscheint hier.</div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -566,7 +658,7 @@ if (!isset($currentRole)) exit;
                                 <div><label class="block text-xs font-bold text-emerald-700 mb-1">Vorname</label><input type="text" name="firstname" value="<?= htmlspecialchars($selectedTeamUser['firstname']) ?>" class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2.5 text-emerald-900 outline-none"></div>
                                 <div><label class="block text-xs font-bold text-emerald-700 mb-1">Nachname</label><input type="text" name="lastname" value="<?= htmlspecialchars($selectedTeamUser['lastname']) ?>" class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2.5 text-emerald-900 outline-none"></div>
                                 <div><label class="block text-xs font-bold text-emerald-700 mb-1">E-Mail</label><input type="email" name="email" value="<?= htmlspecialchars($selectedTeamUser['email']) ?>" class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2.5 text-emerald-900 outline-none"></div>
-                                <div><label class="block text-xs font-bold text-emerald-700 mb-1">MNR</label><input type="text" name="mnr" value="<?= htmlspecialchars($selectedTeamUser['mnr']) ?>" pattern="[0-9]+" class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2.5 text-emerald-900 outline-none"></div>
+                                <div><label class="block text-xs font-bold text-emerald-700 mb-1">MNR</label><input type="text" name="mnr" value="<?= htmlspecialchars($selectedTeamUser['mnr']) ?>" pattern="[A-Za-z]?[0-9]+" title="MNR, z.B. M002 oder 002" class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2.5 text-emerald-900 outline-none"></div>
                                 <div><label class="block text-xs font-bold text-emerald-700 mb-1">Rolle</label><select name="role" class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2.5 text-emerald-900 outline-none">
                                     <option value="Employee" <?= $selectedTeamUser['role'] === 'Employee' ? 'selected' : '' ?>>Employee</option>
                                     <option value="Admin" <?= $selectedTeamUser['role'] === 'CEO' ? 'selected' : '' ?>>Admin</option>
@@ -604,7 +696,13 @@ if (!isset($currentRole)) exit;
                                                 <td class="p-3"><?= htmlspecialchars($req['start_date']) ?> - <?= htmlspecialchars($req['end_date']) ?></td>
                                                 <td class="p-3"><?= (int)$req['net_days'] ?></td>
                                                 <td class="p-3"><?= htmlspecialchars($req['status']) ?></td>
-                                                <td class="p-3"><?= htmlspecialchars($req['admin_comment'] ?? '-') ?></td>
+                                                <td class="p-3">
+                                                    <?php
+                                                        $requestCommentList = $requestCommentsById[$req['id']] ?? [];
+                                                        $latestComment = !empty($requestCommentList) ? $requestCommentList[count($requestCommentList) - 1] : null;
+                                                    ?>
+                                                    <?= $latestComment ? htmlspecialchars($latestComment['comment']) : '-' ?>
+                                                </td>
                                             </tr>
                                         <?php endforeach; ?>
                                         <?php if (empty($selectedTeamUserRequests)): ?>
@@ -646,7 +744,7 @@ if (!isset($currentRole)) exit;
                                         <input type="text" name="lastname" placeholder="<?= I18n::get('ceo.lastname') ?>" required class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2.5 text-emerald-900 outline-none">
                                     </div>
                                     <input type="email" name="email" placeholder="<?= I18n::get('ceo.email') ?>" required class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2.5 text-emerald-900 outline-none">
-                                    <input type="text" name="mnr" placeholder="<?= I18n::get('ceo.mnr') ?>" pattern="[0-9]+" required class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2.5 text-emerald-900 outline-none">
+                                    <input type="text" name="mnr" placeholder="<?= I18n::get('ceo.mnr') ?>" pattern="[A-Za-z]?[0-9]+" title="MNR, z.B. M002 oder 002" required class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2.5 text-emerald-900 outline-none">
                                     <input type="password" id="new_emp_pw" name="password" placeholder="<?= I18n::get('ceo.initial_pw') ?>" required class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2.5 text-emerald-900 outline-none">
                                     <div class="grid grid-cols-2 gap-3">
                                         <select name="role" class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2.5 text-emerald-900 outline-none">
@@ -673,7 +771,8 @@ if (!isset($currentRole)) exit;
 
             </div>
         <?php endif; ?>
-    </main>
+        </main>
+    </div>
 
     <div id="export-modal" class="fixed inset-0 z-[120] hidden items-center justify-center bg-emerald-950/50 backdrop-blur-sm p-4">
         <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-lime-100 p-6">

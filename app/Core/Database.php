@@ -23,12 +23,11 @@ class Database {
                 self::$instance->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
                 self::$instance->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 
-                self::ensureSchemaUpToDate();
-
                 if ($isNew) {
                     self::initializeSchema();
                     self::seedData();
                 }
+                self::ensureSchemaUpToDate();
             } catch (PDOException $e) {
                 die("Database Connection failed: " . $e->getMessage());
             }
@@ -38,6 +37,28 @@ class Database {
 
     private static function ensureSchemaUpToDate() {
         self::$instance->exec("PRAGMA foreign_keys = ON;");
+        $db = self::$instance;
+        $hasBaseTables = $db->query("
+            SELECT COUNT(*)
+            FROM sqlite_master
+            WHERE type = 'table'
+              AND name IN ('mitarbeiter', 'urlaub')
+        ")->fetchColumn();
+        if ((int) $hasBaseTables < 2) {
+            return;
+        }
+
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS request_comments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                request_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                comment TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(request_id) REFERENCES urlaub(idUrlaub) ON DELETE CASCADE,
+                FOREIGN KEY(user_id) REFERENCES mitarbeiter(idMitarbeiter) ON DELETE CASCADE
+            )
+        ");
     }
 
     private static function initializeSchema() {
@@ -198,6 +219,16 @@ class Database {
             von DATE,
             bis DATE,
             ganzjaehrig INTEGER
+        );
+
+        CREATE TABLE IF NOT EXISTS request_comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            request_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            comment TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(request_id) REFERENCES urlaub(idUrlaub) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES mitarbeiter(idMitarbeiter) ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS urlaub_event (

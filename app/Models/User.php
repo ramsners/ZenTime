@@ -272,6 +272,7 @@ class User {
         try {
             $db->beginTransaction();
 
+            $db->prepare("DELETE FROM request_comments WHERE user_id = ?")->execute([$employeeId]);
             $db->prepare("DELETE FROM urlaub WHERE Mitarbeiter_idMitarbeiter = ?")->execute([$employeeId]);
             $db->prepare("DELETE FROM klassen WHERE Mitarbeiter_idMitarbeiter = ?")->execute([$employeeId]);
             $db->prepare("DELETE FROM mitarbeiter_has_dokumente WHERE Mitarbeiter_idMitarbeiter = ?")->execute([$employeeId]);
