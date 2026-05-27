@@ -104,7 +104,7 @@ if ($action === 'calendar_ics') {
     $lines = [
         'BEGIN:VCALENDAR',
         'VERSION:2.0',
-        'PRODID:-//ZenTime//Vacation Calendar//EN',
+        'PRODID:-//EasyTime//Vacation Calendar//EN',
         'CALSCALE:GREGORIAN',
         'METHOD:PUBLISH'
     ];
@@ -130,7 +130,7 @@ if ($action === 'calendar_ics') {
         $start = date('Ymd', strtotime($requestItem['start_date']));
         $endExclusive = date('Ymd', strtotime($requestItem['end_date'] . ' +1 day'));
         $created = gmdate('Ymd\THis\Z', strtotime($requestItem['created_at'] ?? 'now'));
-        $uid = 'request-' . $requestItem['id'] . '@zentime.local';
+        $uid = 'request-' . $requestItem['id'] . '@easytime.local';
 
         $lines[] = 'BEGIN:VEVENT';
         $lines[] = 'UID:' . $uid;
@@ -154,7 +154,7 @@ if ($action === 'calendar_ics') {
             $start = date('Ymd', strtotime($blockedItem['start_date']));
             $endExclusive = date('Ymd', strtotime($blockedItem['end_date'] . ' +1 day'));
             $created = gmdate('Ymd\THis\Z', strtotime($blockedItem['created_at'] ?? 'now'));
-            $uid = 'blocked-' . $blockedItem['id'] . '@zentime.local';
+            $uid = 'blocked-' . $blockedItem['id'] . '@easytime.local';
             $label = $blockedItem['label'] ?: 'Booking blocked';
 
             $lines[] = 'BEGIN:VEVENT';
@@ -171,7 +171,7 @@ if ($action === 'calendar_ics') {
     $lines[] = 'END:VCALENDAR';
 
     header('Content-Type: text/calendar; charset=utf-8');
-    header('Content-Disposition: attachment; filename="zentime-calendar.ics"');
+    header('Content-Disposition: attachment; filename="easytime-calendar.ics"');
     echo implode("\r\n", $lines);
     exit;
 }
@@ -189,6 +189,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
             }
             $created = VacationRequest::create($currentUser['id'], $start, $end, $netDays);
+            if ($created === 'fenstertage_exceeded') {
+                header("Location: /?error=fenstertage_exceeded");
+                exit;
+            }
             if (!$created) {
                 header("Location: /?error=request_conflict");
                 exit;
@@ -361,7 +365,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'update_min_staff' && $isAdmin) {
+        $val = max(0, (int) ($_POST['min_staff_available'] ?? 1));
+        VacationRequest::setSetting('min_staff_available', (string) $val);
         header("Location: /?success=action_success");
+        exit;
+    }
+
+    if ($action === 'update_max_fenstertage' && $isAdmin) {
+        $val = max(0, (int) ($_POST['max_fenstertage'] ?? 0));
+        VacationRequest::setSetting('max_fenstertage', (string) $val);
+        header("Location: /?success=action_success");
+        exit;
+    }
+
+    if ($action === 'create_multi_request' && $currentRole === 'Employee') {
+        $datesJson = $_POST['multi_dates'] ?? '';
+        $dates     = json_decode($datesJson, true);
+        if (!is_array($dates) || empty($dates)) {
+            header("Location: /?error=invalid_request");
+            exit;
+        }
+        sort($dates);
+        $today   = date('Y-m-d');
+        $created = 0;
+        $failed  = 0;
+
+        // Aufeinanderfolgende Daten zu Zeiträumen zusammenfassen
+        $ranges = [];
+        $start  = $dates[0];
+        $prev   = $dates[0];
+        for ($i = 1; $i < count($dates); $i++) {
+            $diff = (strtotime($dates[$i]) - strtotime($prev)) / 86400;
+            if ($diff <= 1) {
+                $prev = $dates[$i];
+            } else {
+                $ranges[] = ['start' => $start, 'end' => $prev];
+                $start = $dates[$i];
+                $prev  = $dates[$i];
+            }
+        }
+        $ranges[] = ['start' => $start, 'end' => $prev];
+
+        foreach ($ranges as $range) {
+            if ($range['start'] < $today) { $failed++; continue; }
+            $netDays = (int) ((strtotime($range['end']) - strtotime($range['start'])) / 86400) + 1;
+            $ok = VacationRequest::create($currentUser['id'], $range['start'], $range['end'], $netDays);
+            if ($ok === true || (is_int($ok) && $ok > 0)) {
+                $created++;
+            } else {
+                $failed++;
+            }
+        }
+
+        header("Location: /?" . ($created > 0 ? "success=created" : "error=request_conflict"));
         exit;
     }
 
@@ -413,7 +469,8 @@ if ($isAdmin) {
 $notificationList = [];
 $notificationUnreadCount = 0;
 $userVacationStats = VacationRequest::calculateUserVacationStats($currentUser['id']);
-$minStaffAvailable = 1;
+$minStaffAvailable = (int) VacationRequest::getSetting('min_staff_available', '1');
+$maxFenstertage    = (int) VacationRequest::getSetting('max_fenstertage', '0');
 $requestCommentsById = RequestComment::getByRequestIds(array_column($requests, 'id'));
 $recentAuditLogs = [];
 $capacitySummary = $isAdmin ? VacationRequest::getCapacitySummary(date('Y-m-d'), date('Y-m-d', strtotime('+30 days'))) : null;

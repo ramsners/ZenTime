@@ -1,245 +1,292 @@
-Project ahaappupSchema {
+Project ZenTime {
   database_type: "SQLite"
-  Note: "1:1 table/column/key mapping from ahaappup dump (schema only)"
+  Note: "Zeiterfassung & Urlaubsverwaltung — AHA Appup"
 }
 
-Table abmeldung {
-  idAbmeldung integer [pk, increment]
-  datumAbmeldung date
-  Mitarbeiter_idMitarbeiter integer [not null]
-  datumAnmeldung date
-  resturlaub integer
-}
-
-Table aenderungsmeldung {
-  idAenderungsmeldung integer [pk, increment]
-  datum date
-  stdWoche integer
-  Mitarbeiter_idMitarbeiter integer [not null]
-  urlaubsanspruch integer
-  bearbeitetVon integer [not null]
-}
-
-Table dokumente {
-  idDokumente integer [pk, increment]
-  url varchar(400)
-  uploadDatum date
-}
-
-Table eintritt {
-  idEintritt integer [pk, increment]
-  eintrittsdatum date
-  stdWoche integer
-  berufsjahr integer
-  einstufung varchar(45)
-  offenerUrlaub integer
-  Mitarbeiter_idMitarbeiter integer [not null]
-}
-
-Table event {
-  idEvent integer [pk, increment]
-  start date
-  ende date
-  titel varchar(45)
-  bemerkung text
-  klassen varchar(45)
-  urlaubAkzeptabel integer
-  inUrlaub integer [not null]
-  eventtyp varchar(45) [not null]
-  status integer [not null]
-  Standorte_idStandorte integer [not null]
-}
-
-Table klassen {
-  idKlassen integer [pk, increment]
-  klasse varchar(45)
-  Mitarbeiter_idMitarbeiter integer [not null]
-}
+// ─── KERN ────────────────────────────────────────────────────────────────────
 
 Table mitarbeiter {
-  idMitarbeiter integer [pk, increment]
-  id varchar(30)
-  vorname varchar(45)
-  nachname varchar(45)
-  strasse varchar(45)
-  hausnummer varchar(45)
-  plz integer
-  ort varchar(45)
-  gebDatum date
-  svNummer varchar(45)
-  geschlecht varchar(45)
-  email varchar(100)
-  firmenTelefonnummer varchar(45)
-  privateTelefonnummer varchar(45)
-  iban varchar(45)
-  bic varchar(45)
-  position varchar(45)
-  weiterePosition varchar(45)
-  bemerkung text
-  status tinyint
-  password varchar(200)
-  berechtigung varchar(45)
+  id              integer     [pk, increment]
+  personal_id     varchar(30)
+  vorname         varchar(45) [not null]
+  nachname        varchar(45) [not null]
+  email           varchar(100)
+  password        varchar(200)
+  berechtigung    varchar(45)
+  status          tinyint
+
+  // Kontakt
+  firmen_telefon  varchar(45)
+  privat_telefon  varchar(45)
+
+  // Adresse
+  strasse         varchar(45)
+  hausnummer      varchar(45)
+  plz             integer
+  ort             varchar(45)
+
+  // Personalien
+  geb_datum       date
+  sv_nummer       varchar(45)
+  geschlecht      varchar(45)
+  iban            varchar(45)
+  bic             varchar(45)
+
+  // Stelle
+  position        varchar(45)
+  weitere_position varchar(45)
+  akt_wochen_std  integer
   urlaubsanspruch integer
-  aktWochenStd integer
-}
-
-Table mitarbeiter_has_dokumente {
-  Mitarbeiter_idMitarbeiter integer [not null]
-  Dokumente_idDokumente integer [not null]
-
-  indexes {
-    (Mitarbeiter_idMitarbeiter, Dokumente_idDokumente) [pk]
-  }
-}
-
-Table mitarbeiter_has_standorte {
-  Mitarbeiter_idMitarbeiter integer [not null]
-  Standorte_idStandorte integer [not null]
-  basis tinyint [not null]
-
-  indexes {
-    (Mitarbeiter_idMitarbeiter, Standorte_idStandorte) [pk]
-  }
+  bemerkung       text
 }
 
 Table standorte {
-  idStandorte integer [pk, increment]
-  ort varchar(150)
+  id           integer     [pk, increment]
+  ort          varchar(150) [not null]
+  strasse      varchar(45)
+  hausnummer   varchar(45)
+  plz          integer
   kostenstelle integer
-  strasse varchar(45)
-  hausnummer varchar(45)
-  plz integer
 }
 
-Table standort_vertritt_standort {
-  id integer [pk, increment]
-  idStandort integer [not null]
-  idStandortVertreter integer [not null]
-  prioritaet integer [not null]
+// ─── ZUORDNUNGEN ─────────────────────────────────────────────────────────────
+
+Table mitarbeiter_standorte {
+  mitarbeiter_id integer [not null, ref: > mitarbeiter.id]
+  standort_id    integer [not null, ref: > standorte.id]
+  basis          tinyint [not null]
+
+  indexes {
+    (mitarbeiter_id, standort_id) [pk]
+  }
+}
+
+Table standort_vertretung {
+  id           integer [pk, increment]
+  standort_id  integer [not null, ref: > standorte.id]
+  vertreter_id integer [not null, ref: > standorte.id]
+  prioritaet   integer [not null]
+}
+
+Table klassen {
+  id             integer     [pk, increment]
+  klasse         varchar(45)
+  mitarbeiter_id integer [not null, ref: > mitarbeiter.id]
+}
+
+// ─── ZEITERFASSUNG ───────────────────────────────────────────────────────────
+
+Table taetigkeitsart {
+  id          integer     [pk, increment]
+  bezeichnung varchar(45) [not null]
 }
 
 Table taetigkeit {
-  idTaetigkeit integer [pk, increment]
-  datum date
-  idMitarbeiter integer [not null]
-  idTaetigkeitsart integer [not null]
-  stunden decimal(10,3)
+  id               integer      [pk, increment]
+  datum            date         [not null]
+  mitarbeiter_id   integer      [not null, ref: > mitarbeiter.id]
+  taetigkeitsart_id integer     [not null, ref: > taetigkeitsart.id]
+  stunden          decimal(10,3)
 
   indexes {
-    (datum, idMitarbeiter, idTaetigkeitsart) [unique, name: "uq_taetigkeit"]
+    (datum, mitarbeiter_id, taetigkeitsart_id) [unique, name: "uq_taetigkeit"]
   }
 }
 
-Table taetigkeitsart {
-  idTaetigkeitsart integer [pk, increment]
-  bezeichnung varchar(45)
+Table zuschlag {
+  mitarbeiter_id integer [not null, ref: > mitarbeiter.id]
+  datum          date    [not null]
+  gr10_pro_tag   decimal(10,3)
+  wochenende     decimal(10,3)
+  nacht          decimal(10,3)
+  A              decimal(10,3)
+  C              decimal(10,3)
+  E              decimal(10,3)
+  F              decimal(10,3)
+  D              decimal(10,3)
+  theorie        decimal(10,3)
+
+  indexes {
+    (mitarbeiter_id, datum) [pk]
+  }
 }
 
 Table uebertrag {
-  uebertragUrlaub decimal(5,1)
-  uebertragUeberstunden decimal(5,1)
-  idMitarbeiter integer [not null]
-  datum date [not null]
-  angWochenStd decimal(10,3)
-  monatsSoll decimal(10,3)
+  mitarbeiter_id      integer [not null, ref: > mitarbeiter.id]
+  datum               date    [not null]
+  uebertrag_urlaub    decimal(5,1)
+  uebertrag_ueberstunden decimal(5,1)
+  ang_wochen_std      decimal(10,3)
+  monats_soll         decimal(10,3)
 
   indexes {
-    (idMitarbeiter, datum) [pk]
+    (mitarbeiter_id, datum) [pk]
   }
 }
 
+// ─── URLAUB ──────────────────────────────────────────────────────────────────
+
 Table urlaub {
-  idUrlaub integer [pk, increment]
-  genemigt tinyint
-  beginn date
-  ende date
-  tageImUrlaub integer
-  beginnsdatumInWorten varchar(45)
-  endedatumInWorten varchar(45)
-  idVertretung integer
-  buero integer
-  idBueroVertretung integer
-  Mitarbeiter_idMitarbeiter integer [not null]
+  id                  integer [pk, increment]
+  mitarbeiter_id      integer [not null, ref: > mitarbeiter.id]
+  beginn              date
+  ende                date
+  tage_im_urlaub      integer
+  beginn_in_worten    varchar(45)
+  ende_in_worten      varchar(45)
+  genehmigt           tinyint
+  vertretung_id       integer [ref: > mitarbeiter.id]
+  buero               integer
+  buero_vertretung_id integer [ref: > mitarbeiter.id]
 }
 
-Table request_comments {
-  id integer [pk, increment]
-  request_id integer [not null]
-  user_id integer [not null]
-  comment text [not null]
-  created_at datetime
+Table urlaub_kommentar {
+  id             integer  [pk, increment]
+  urlaub_id      integer  [not null, ref: > urlaub.id]
+  mitarbeiter_id integer  [not null, ref: > mitarbeiter.id]
+  kommentar      text     [not null]
+  erstellt_am    datetime
 }
 
 Table urlaubssperre {
-  idUrlaubssperre integer [pk, increment]
-  von date
-  bis date
+  id          integer [pk, increment]
+  von         date
+  bis         date
   ganzjaehrig integer
 }
 
-Table urlaub_event {
-  idUrlaub_idEvent integer [pk, increment]
-  idEvent integer [not null]
-  idUrlaub integer [not null]
+// ─── EVENTS ──────────────────────────────────────────────────────────────────
+
+Table event {
+  id                integer     [pk, increment]
+  standort_id       integer     [not null, ref: > standorte.id]
+  start             date
+  ende              date
+  titel             varchar(45)
+  eventtyp          varchar(45) [not null]
+  klassen           varchar(45)
+  urlaub_akzeptabel integer
+  in_urlaub         integer     [not null]
+  status            integer     [not null]
+  bemerkung         text
 }
 
-Table viewformonthlyreport {
-  idMitarbeiter integer
-  datum date
-  A decimal(10,3)
-  C decimal(10,3)
-  E decimal(10,3)
-  F decimal(10,3)
-  D decimal(10,3)
-  THEORIE decimal(10,3)
-  nacht decimal(10,3)
-  wochenende decimal(10,3)
-  gr10proTag decimal(10,3)
-  Lektion decimal(10,3)
-  Regie decimal(10,3)
-  Pruefung decimal(10,3)
-  krank decimal(10,3)
-  Feiertag decimal(10,3)
-  Urlaub decimal(10,3)
+Table urlaub_event {
+  id        integer [pk, increment]
+  urlaub_id integer [not null, ref: > urlaub.id]
+  event_id  integer [not null, ref: > event.id]
+}
+
+// ─── PERSONALVERWALTUNG ──────────────────────────────────────────────────────
+
+Table eintritt {
+  id              integer     [pk, increment]
+  mitarbeiter_id  integer     [not null, ref: > mitarbeiter.id]
+  eintrittsdatum  date
+  std_woche       integer
+  berufsjahr      integer
+  einstufung      varchar(45)
+  offener_urlaub  integer
+}
+
+Table abmeldung {
+  id              integer [pk, increment]
+  mitarbeiter_id  integer [not null, ref: > mitarbeiter.id]
+  datum_abmeldung date
+  datum_anmeldung date
+  resturlaub      integer
+}
+
+Table aenderungsmeldung {
+  id              integer [pk, increment]
+  mitarbeiter_id  integer [not null, ref: > mitarbeiter.id]
+  bearbeitet_von  integer [not null, ref: > mitarbeiter.id]
+  datum           date
+  std_woche       integer
+  urlaubsanspruch integer
+}
+
+// ─── DOKUMENTE ───────────────────────────────────────────────────────────────
+
+Table dokumente {
+  id           integer     [pk, increment]
+  url          varchar(400)
+  upload_datum date
+}
+
+Table mitarbeiter_dokumente {
+  mitarbeiter_id integer [not null, ref: > mitarbeiter.id]
+  dokument_id    integer [not null, ref: > dokumente.id]
+
+  indexes {
+    (mitarbeiter_id, dokument_id) [pk]
+  }
 }
 
 Table vorlagen {
-  idVorlagen integer [pk, increment]
+  id  integer     [pk, increment]
   typ varchar(45)
   url varchar(400)
 }
 
-Table zuschlag {
-  idMitarbeiter integer [not null]
-  datum date [not null]
-  gr10proTag decimal(10,3)
-  wochenende decimal(10,3)
-  nacht decimal(10,3)
-  A decimal(10,3)
-  C decimal(10,3)
-  E decimal(10,3)
-  F decimal(10,3)
-  D decimal(10,3)
-  THEORIE decimal(10,3)
+// ─── VIEWS (read-only) ───────────────────────────────────────────────────────
 
-  indexes {
-    (idMitarbeiter, datum) [pk]
-  }
+Table monatsbericht_view [note: "Aggregierte Monatsansicht — nicht direkt beschreibbar"] {
+  mitarbeiter_id integer
+  datum          date
+  A              decimal(10,3)
+  C              decimal(10,3)
+  E              decimal(10,3)
+  F              decimal(10,3)
+  D              decimal(10,3)
+  theorie        decimal(10,3)
+  nacht          decimal(10,3)
+  wochenende     decimal(10,3)
+  gr10_pro_tag   decimal(10,3)
+  lektion        decimal(10,3)
+  regie          decimal(10,3)
+  pruefung       decimal(10,3)
+  krank          decimal(10,3)
+  feiertag       decimal(10,3)
+  urlaub         decimal(10,3)
 }
 
-Ref: abmeldung.Mitarbeiter_idMitarbeiter > mitarbeiter.idMitarbeiter
-Ref: aenderungsmeldung.Mitarbeiter_idMitarbeiter > mitarbeiter.idMitarbeiter
-Ref: eintritt.Mitarbeiter_idMitarbeiter > mitarbeiter.idMitarbeiter
-Ref: event.Standorte_idStandorte > standorte.idStandorte
-Ref: klassen.Mitarbeiter_idMitarbeiter > mitarbeiter.idMitarbeiter
-Ref: mitarbeiter_has_dokumente.Mitarbeiter_idMitarbeiter > mitarbeiter.idMitarbeiter
-Ref: mitarbeiter_has_dokumente.Dokumente_idDokumente > dokumente.idDokumente
-Ref: mitarbeiter_has_standorte.Mitarbeiter_idMitarbeiter > mitarbeiter.idMitarbeiter
-Ref: mitarbeiter_has_standorte.Standorte_idStandorte > standorte.idStandorte
-Ref: taetigkeit.idMitarbeiter > mitarbeiter.idMitarbeiter
-Ref: taetigkeit.idTaetigkeitsart > taetigkeitsart.idTaetigkeitsart
-Ref: uebertrag.idMitarbeiter > mitarbeiter.idMitarbeiter
-Ref: urlaub.Mitarbeiter_idMitarbeiter > mitarbeiter.idMitarbeiter
-Ref: request_comments.request_id > urlaub.idUrlaub
-Ref: request_comments.user_id > mitarbeiter.idMitarbeiter
-Ref: zuschlag.idMitarbeiter > mitarbeiter.idMitarbeiter
+// ─── GRUPPEN ─────────────────────────────────────────────────────────────────
+
+TableGroup Kern {
+  mitarbeiter
+  standorte
+}
+
+TableGroup Zuordnungen {
+  mitarbeiter_standorte
+  standort_vertretung
+  klassen
+}
+
+TableGroup Zeiterfassung {
+  taetigkeitsart
+  taetigkeit
+  zuschlag
+  uebertrag
+}
+
+TableGroup Urlaub {
+  urlaub
+  urlaub_kommentar
+  urlaubssperre
+  urlaub_event
+  event
+}
+
+TableGroup Personal {
+  eintritt
+  abmeldung
+  aenderungsmeldung
+}
+
+TableGroup Dokumente {
+  dokumente
+  mitarbeiter_dokumente
+  vorlagen
+}

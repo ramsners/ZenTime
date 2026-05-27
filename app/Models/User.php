@@ -7,7 +7,7 @@ use App\Core\Database;
 class User {
     private static function normalizeRole(?string $role): string {
         $normalized = strtolower(trim((string) $role));
-        if ($normalized === 'admin' || $normalized === 'ceo') {
+        if ($normalized === 'admin' || $normalized === 'ceo' || $normalized === 'administrator') {
             return 'CEO';
         }
         return 'Employee';
@@ -15,8 +15,8 @@ class User {
 
     private static function mapEmployeeRow(array $row): array {
         return [
-            'id' => (int) ($row['idMitarbeiter'] ?? 0),
-            'mnr' => (string) ($row['id'] ?? ''),
+            'id' => (int) ($row['id'] ?? 0),
+            'mnr' => (string) ($row['personal_id'] ?? ''),
             'firstname' => (string) ($row['vorname'] ?? ''),
             'lastname' => (string) ($row['nachname'] ?? ''),
             'email' => (string) ($row['email'] ?? ''),
@@ -35,23 +35,23 @@ class User {
             SELECT
                 m.*,
                 (
-                    SELECT k.idKlassen
+                    SELECT k.id
                     FROM klassen k
-                    WHERE k.Mitarbeiter_idMitarbeiter = m.idMitarbeiter
-                    ORDER BY k.idKlassen ASC
+                    WHERE k.mitarbeiter_id = m.id
+                    ORDER BY k.id ASC
                     LIMIT 1
                 ) AS department_id,
                 (
                     SELECT k.klasse
                     FROM klassen k
-                    WHERE k.Mitarbeiter_idMitarbeiter = m.idMitarbeiter
-                    ORDER BY k.idKlassen ASC
+                    WHERE k.mitarbeiter_id = m.id
+                    ORDER BY k.id ASC
                     LIMIT 1
                 ) AS department_name,
                 (
-                    SELECT u.uebertragUeberstunden
+                    SELECT u.uebertrag_ueberstunden
                     FROM uebertrag u
-                    WHERE u.idMitarbeiter = m.idMitarbeiter
+                    WHERE u.mitarbeiter_id = m.id
                     ORDER BY u.datum DESC
                     LIMIT 1
                 ) AS overtime_hours
@@ -68,28 +68,28 @@ class User {
             SELECT
                 m.*,
                 (
-                    SELECT k.idKlassen
+                    SELECT k.id
                     FROM klassen k
-                    WHERE k.Mitarbeiter_idMitarbeiter = m.idMitarbeiter
-                    ORDER BY k.idKlassen ASC
+                    WHERE k.mitarbeiter_id = m.id
+                    ORDER BY k.id ASC
                     LIMIT 1
                 ) AS department_id,
                 (
                     SELECT k.klasse
                     FROM klassen k
-                    WHERE k.Mitarbeiter_idMitarbeiter = m.idMitarbeiter
-                    ORDER BY k.idKlassen ASC
+                    WHERE k.mitarbeiter_id = m.id
+                    ORDER BY k.id ASC
                     LIMIT 1
                 ) AS department_name,
                 (
-                    SELECT u.uebertragUeberstunden
+                    SELECT u.uebertrag_ueberstunden
                     FROM uebertrag u
-                    WHERE u.idMitarbeiter = m.idMitarbeiter
+                    WHERE u.mitarbeiter_id = m.id
                     ORDER BY u.datum DESC
                     LIMIT 1
                 ) AS overtime_hours
             FROM mitarbeiter m
-            WHERE m.idMitarbeiter = ?
+            WHERE m.id = ?
             LIMIT 1
         ");
         $stmt->execute([(int) $id]);
@@ -106,7 +106,7 @@ class User {
         $stmt = $db->prepare("
             SELECT *
             FROM mitarbeiter
-            WHERE email = ? OR id = ? OR id = ?
+            WHERE email = ? OR personal_id = ? OR personal_id = ?
             LIMIT 1
         ");
         $stmt->execute([$emailOrMnr, $emailOrMnr, $normalizedStaffId]);
@@ -129,7 +129,7 @@ class User {
 
     private static function mapRoleToSchemaValue(string $role): string {
         return strtolower($role) === 'admin' || strtolower($role) === 'ceo'
-            ? 'Admin'
+            ? 'Administrator'
             : 'Mitarbeiter';
     }
 
@@ -148,16 +148,16 @@ class User {
         }
 
         $db = Database::getConnection();
-        $existingStmt = $db->prepare("SELECT idKlassen FROM klassen WHERE Mitarbeiter_idMitarbeiter = ? LIMIT 1");
+        $existingStmt = $db->prepare("SELECT id FROM klassen WHERE mitarbeiter_id = ? LIMIT 1");
         $existingStmt->execute([$employeeId]);
         $existingId = $existingStmt->fetchColumn();
         if ($existingId) {
-            $updateStmt = $db->prepare("UPDATE klassen SET klasse = ? WHERE idKlassen = ?");
+            $updateStmt = $db->prepare("UPDATE klassen SET klasse = ? WHERE id = ?");
             $updateStmt->execute([$trimmed, $existingId]);
             return;
         }
 
-        $insertStmt = $db->prepare("INSERT INTO klassen (klasse, Mitarbeiter_idMitarbeiter) VALUES (?, ?)");
+        $insertStmt = $db->prepare("INSERT INTO klassen (klasse, mitarbeiter_id) VALUES (?, ?)");
         $insertStmt->execute([$trimmed, $employeeId]);
     }
 
@@ -165,12 +165,12 @@ class User {
         $db = Database::getConnection();
         $today = date('Y-m-d');
         $stmt = $db->prepare("
-            INSERT INTO uebertrag (uebertragUrlaub, uebertragUeberstunden, idMitarbeiter, datum, angWochenStd, monatsSoll)
-            VALUES (0, ?, ?, ?, NULL, NULL)
-            ON CONFLICT(idMitarbeiter, datum)
-            DO UPDATE SET uebertragUeberstunden = excluded.uebertragUeberstunden
+            INSERT INTO uebertrag (mitarbeiter_id, datum, uebertrag_urlaub, uebertrag_ueberstunden, ang_wochen_std, monats_soll)
+            VALUES (?, ?, 0, ?, NULL, NULL)
+            ON CONFLICT(mitarbeiter_id, datum)
+            DO UPDATE SET uebertrag_ueberstunden = excluded.uebertrag_ueberstunden
         ");
-        $stmt->execute([$overtimeHours, $employeeId, $today]);
+        $stmt->execute([$employeeId, $today, $overtimeHours]);
     }
 
     public static function createEmployee($firstname, $lastname, $email, $mnr, $password, $role = 'Employee', $departmentId = null, $customColor = null, $vacationDays = 25, $overtimeHours = 0) {
@@ -182,7 +182,7 @@ class User {
 
         $className = null;
         if ($departmentId !== null && $departmentId !== '') {
-            $classStmt = $db->prepare("SELECT klasse FROM klassen WHERE idKlassen = ? LIMIT 1");
+            $classStmt = $db->prepare("SELECT klasse FROM klassen WHERE id = ? LIMIT 1");
             $classStmt->execute([(int) $departmentId]);
             $className = $classStmt->fetchColumn() ?: null;
         }
@@ -190,7 +190,7 @@ class User {
         try {
             $db->beginTransaction();
             $stmt = $db->prepare("
-                INSERT INTO mitarbeiter (id, vorname, nachname, email, status, password, berechtigung, urlaubsanspruch, aktWochenStd)
+                INSERT INTO mitarbeiter (personal_id, vorname, nachname, email, status, password, berechtigung, urlaubsanspruch, akt_wochen_std)
                 VALUES (?, ?, ?, ?, 0, ?, ?, ?, 40)
             ");
             $stmt->execute([
@@ -226,7 +226,7 @@ class User {
 
         $className = null;
         if ($departmentId !== null && $departmentId !== '') {
-            $classStmt = $db->prepare("SELECT klasse FROM klassen WHERE idKlassen = ? LIMIT 1");
+            $classStmt = $db->prepare("SELECT klasse FROM klassen WHERE id = ? LIMIT 1");
             $classStmt->execute([(int) $departmentId]);
             $className = $classStmt->fetchColumn() ?: null;
         }
@@ -235,8 +235,8 @@ class User {
             $db->beginTransaction();
             $stmt = $db->prepare("
                 UPDATE mitarbeiter
-                SET id = ?, vorname = ?, nachname = ?, email = ?, berechtigung = ?, urlaubsanspruch = ?
-                WHERE idMitarbeiter = ?
+                SET personal_id = ?, vorname = ?, nachname = ?, email = ?, berechtigung = ?, urlaubsanspruch = ?
+                WHERE id = ?
             ");
             $stmt->execute([
                 $staffId,
@@ -249,7 +249,7 @@ class User {
             ]);
 
             if (!empty($password)) {
-                $pwStmt = $db->prepare("UPDATE mitarbeiter SET password = ? WHERE idMitarbeiter = ?");
+                $pwStmt = $db->prepare("UPDATE mitarbeiter SET password = ? WHERE id = ?");
                 $pwStmt->execute([$password, (int) $id]);
             }
 
@@ -272,18 +272,18 @@ class User {
         try {
             $db->beginTransaction();
 
-            $db->prepare("DELETE FROM request_comments WHERE user_id = ?")->execute([$employeeId]);
-            $db->prepare("DELETE FROM urlaub WHERE Mitarbeiter_idMitarbeiter = ?")->execute([$employeeId]);
-            $db->prepare("DELETE FROM klassen WHERE Mitarbeiter_idMitarbeiter = ?")->execute([$employeeId]);
-            $db->prepare("DELETE FROM mitarbeiter_has_dokumente WHERE Mitarbeiter_idMitarbeiter = ?")->execute([$employeeId]);
-            $db->prepare("DELETE FROM mitarbeiter_has_standorte WHERE Mitarbeiter_idMitarbeiter = ?")->execute([$employeeId]);
-            $db->prepare("DELETE FROM eintritt WHERE Mitarbeiter_idMitarbeiter = ?")->execute([$employeeId]);
-            $db->prepare("DELETE FROM abmeldung WHERE Mitarbeiter_idMitarbeiter = ?")->execute([$employeeId]);
-            $db->prepare("DELETE FROM aenderungsmeldung WHERE Mitarbeiter_idMitarbeiter = ? OR bearbeitetVon = ?")->execute([$employeeId, $employeeId]);
-            $db->prepare("DELETE FROM taetigkeit WHERE idMitarbeiter = ?")->execute([$employeeId]);
-            $db->prepare("DELETE FROM uebertrag WHERE idMitarbeiter = ?")->execute([$employeeId]);
-            $db->prepare("DELETE FROM zuschlag WHERE idMitarbeiter = ?")->execute([$employeeId]);
-            $db->prepare("DELETE FROM mitarbeiter WHERE idMitarbeiter = ?")->execute([$employeeId]);
+            $db->prepare("DELETE FROM urlaub_kommentar WHERE mitarbeiter_id = ?")->execute([$employeeId]);
+            $db->prepare("DELETE FROM urlaub WHERE mitarbeiter_id = ?")->execute([$employeeId]);
+            $db->prepare("DELETE FROM klassen WHERE mitarbeiter_id = ?")->execute([$employeeId]);
+            $db->prepare("DELETE FROM mitarbeiter_dokumente WHERE mitarbeiter_id = ?")->execute([$employeeId]);
+            $db->prepare("DELETE FROM mitarbeiter_standorte WHERE mitarbeiter_id = ?")->execute([$employeeId]);
+            $db->prepare("DELETE FROM eintritt WHERE mitarbeiter_id = ?")->execute([$employeeId]);
+            $db->prepare("DELETE FROM abmeldung WHERE mitarbeiter_id = ?")->execute([$employeeId]);
+            $db->prepare("DELETE FROM aenderungsmeldung WHERE mitarbeiter_id = ? OR bearbeitet_von = ?")->execute([$employeeId, $employeeId]);
+            $db->prepare("DELETE FROM taetigkeit WHERE mitarbeiter_id = ?")->execute([$employeeId]);
+            $db->prepare("DELETE FROM uebertrag WHERE mitarbeiter_id = ?")->execute([$employeeId]);
+            $db->prepare("DELETE FROM zuschlag WHERE mitarbeiter_id = ?")->execute([$employeeId]);
+            $db->prepare("DELETE FROM mitarbeiter WHERE id = ?")->execute([$employeeId]);
 
             $db->commit();
             return true;
@@ -297,7 +297,7 @@ class User {
 
     public static function updatePassword($userId, $newPassword, $clearMustChange = false) {
         $db = Database::getConnection();
-        $stmt = $db->prepare("UPDATE mitarbeiter SET password = ? WHERE idMitarbeiter = ?");
+        $stmt = $db->prepare("UPDATE mitarbeiter SET password = ? WHERE id = ?");
         return $stmt->execute([$newPassword, (int) $userId]);
     }
 

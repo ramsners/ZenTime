@@ -1,6 +1,6 @@
 {
-    "name": "ramsner/zentime",
-    "description": "ZenTime - Time and Vacation Management System",
+    "name": "ramsner/easytime",
+    "description": "EasyTime - Time and Vacation Management System",
     "type": "project",
     "require": {
         "php": ">=8.0",

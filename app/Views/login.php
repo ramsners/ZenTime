@@ -9,10 +9,10 @@ $isForgot = isset($_GET['forgot']);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZenTime | <?= I18n::get('login.welcome') ?></title>
+    <title>EasyTime | <?= I18n::get('login.welcome') ?></title>
     <link rel="icon" type="image/svg+xml" href="/assets/icons/urlaubsplaner_icon.svg">
     <script>
-        window.zentimeTailwindConfig = {
+        window.easytimeTailwindConfig = {
             theme: {
                 extend: {
                     colors: {
@@ -54,29 +54,41 @@ $isForgot = isset($_GET['forgot']);
                             900: '#1a1a1a'
                         },
                         green: {
-                            100: '#fff0f7',
-                            700: '#E8007D'
+                            50:  '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534'
                         },
                         red: {
-                            50: '#fff0f7',
-                            100: '#ffd6eb',
-                            200: '#ffadd8',
-                            500: '#E8007D',
-                            600: '#c8006c',
-                            700: '#a60059',
-                            800: '#7d0044'
+                            50:  '#fef2f2',
+                            100: '#fee2e2',
+                            200: '#fecaca',
+                            500: '#ef4444',
+                            600: '#dc2626',
+                            700: '#b91c1c',
+                            800: '#991b1b'
                         },
                         orange: {
-                            100: '#fff7cc',
-                            300: '#FFD600',
-                            400: '#E8007D',
-                            500: '#c8006c',
-                            600: '#1a1a1a',
-                            800: '#1a1a1a'
+                            50:  '#fff7ed',
+                            100: '#ffedd5',
+                            200: '#fed7aa',
+                            300: '#fdba74',
+                            400: '#fb923c',
+                            500: '#f97316',
+                            600: '#ea580c',
+                            700: '#c2410c',
+                            800: '#9a3412'
                         },
                         blue: {
-                            100: '#f3f3f3',
-                            700: '#1a1a1a'
+                            50:  '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8'
                         },
                         pink: {
                             50: '#fff0f7',
@@ -94,7 +106,7 @@ $isForgot = isset($_GET['forgot']);
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        window.tailwind.config = window.zentimeTailwindConfig;
+        window.tailwind.config = window.easytimeTailwindConfig;
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -131,7 +143,7 @@ $isForgot = isset($_GET['forgot']);
         <div class="max-w-md w-full space-y-8 bg-white p-10 rounded-3xl shadow-xl shadow-lime-900/5 relative z-10 border border-yellow-100/50">
             <div class="text-center">
                 <img src="/assets/icons/urlaubsplaner_icon.svg" alt="Urlaubsplaner" class="mx-auto mb-6 h-16 w-16 rounded-2xl shadow-lg shadow-lime-400/30">
-                <h2 class="text-3xl font-bold text-emerald-900 tracking-tight">ZenTime</h2>
+                <h2 class="text-3xl font-bold text-emerald-900 tracking-tight">Easy<span class="text-lime-600">Time</span></h2>
                 <?php if ($isReset): ?>
                     <p class="mt-2 text-emerald-600"><?= I18n::get('newpw.title') ?></p>
                 <?php elseif ($isForgot): ?>

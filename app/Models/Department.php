@@ -8,7 +8,7 @@ class Department {
     public static function getAll(): array {
         $db = Database::getConnection();
         $stmt = $db->query("
-            SELECT MIN(idKlassen) AS id, klasse
+            SELECT MIN(id) AS id, klasse
             FROM klassen
             WHERE klasse IS NOT NULL AND TRIM(klasse) != ''
             GROUP BY klasse

@@ -11,23 +11,26 @@ class RequestComment {
             return false;
         }
 
-        $db = Database::getConnection();
-        $stmt = $db->prepare("INSERT INTO request_comments (request_id, user_id, comment) VALUES (?, ?, ?)");
+        $db   = Database::getConnection();
+        $stmt = $db->prepare("INSERT INTO urlaub_kommentar (urlaub_id, mitarbeiter_id, kommentar) VALUES (?, ?, ?)");
         return $stmt->execute([(int) $requestId, (int) $userId, $trimmed]);
     }
 
     public static function getByRequestId($requestId) {
-        $db = Database::getConnection();
+        $db   = Database::getConnection();
         $stmt = $db->prepare("
             SELECT
-                rc.*,
-                m.vorname AS firstname,
-                m.nachname AS lastname,
+                rc.id,
+                rc.urlaub_id   AS request_id,
+                rc.kommentar   AS comment,
+                rc.erstellt_am AS created_at,
+                m.vorname      AS firstname,
+                m.nachname     AS lastname,
                 m.berechtigung AS role
-            FROM request_comments rc
-            JOIN mitarbeiter m ON m.idMitarbeiter = rc.user_id
-            WHERE rc.request_id = ?
-            ORDER BY rc.created_at ASC
+            FROM urlaub_kommentar rc
+            JOIN mitarbeiter m ON m.id = rc.mitarbeiter_id
+            WHERE rc.urlaub_id = ?
+            ORDER BY rc.erstellt_am ASC
         ");
         $stmt->execute([(int) $requestId]);
         return $stmt->fetchAll();
@@ -40,18 +43,21 @@ class RequestComment {
             return [];
         }
 
-        $db = Database::getConnection();
+        $db           = Database::getConnection();
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $stmt = $db->prepare("
+        $stmt         = $db->prepare("
             SELECT
-                rc.*,
-                m.vorname AS firstname,
-                m.nachname AS lastname,
+                rc.id,
+                rc.urlaub_id   AS request_id,
+                rc.kommentar   AS comment,
+                rc.erstellt_am AS created_at,
+                m.vorname      AS firstname,
+                m.nachname     AS lastname,
                 m.berechtigung AS role
-            FROM request_comments rc
-            JOIN mitarbeiter m ON m.idMitarbeiter = rc.user_id
-            WHERE rc.request_id IN ($placeholders)
-            ORDER BY rc.created_at ASC, rc.id ASC
+            FROM urlaub_kommentar rc
+            JOIN mitarbeiter m ON m.id = rc.mitarbeiter_id
+            WHERE rc.urlaub_id IN ($placeholders)
+            ORDER BY rc.erstellt_am ASC, rc.id ASC
         ");
         $stmt->execute($ids);
 
