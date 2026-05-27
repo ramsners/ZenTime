@@ -74,7 +74,13 @@ class I18n {
             'newpw.submit' => 'Change Password',
             'force.title' => 'Welcome! Please set your own password.',
             'force.info' => 'Since this is your first login, please update your password for security.',
-            'ceo.days' => 'Days'
+            'ceo.days' => 'Days',
+            'settings.title' => 'Settings',
+            'settings.min_staff' => 'Minimum staffing (employees/day)',
+            'settings.max_fenstertage' => 'Max. bridge days per request',
+            'settings.max_fenstertage_hint' => '(0 = no limit)',
+            'settings.holidays_note' => 'Austrian public holidays are loaded from date.nager.at (cached locally).',
+            'emp.max_fenstertage' => 'Max. %d bridge day(s) per request.'
         ],
         'de' => [
             'login.title' => 'Zeit zu entspannen.',
@@ -146,12 +152,18 @@ class I18n {
             'newpw.submit' => 'Passwort Ändern',
             'force.title' => 'Willkommen! Bitte setze ein neues Passwort.',
             'force.info' => 'Da dies dein erster Login ist, aktualisiere bitte aus Sicherheitsgründen dein Passwort.',
-            'ceo.days' => 'Tage'
+            'ceo.days' => 'Tage',
+            'settings.title' => 'Einstellungen',
+            'settings.min_staff' => 'Mindestbesetzung (Mitarbeiter/Tag)',
+            'settings.max_fenstertage' => 'Max. Fenstertage pro Antrag',
+            'settings.max_fenstertage_hint' => '(0 = kein Limit)',
+            'settings.holidays_note' => 'Österreichische Feiertage werden über date.nager.at geladen (lokal zwischengespeichert).',
+            'emp.max_fenstertage' => 'Max. %d Fenstertag(e) pro Antrag.'
         ]
     ];
 
     public static function get($key) {
-        $lang = $_SESSION['lang'] ?? 'en';
+        $lang = $_SESSION['lang'] ?? 'de';
         return self::$vocab[$lang][$key] ?? $key;
     }
 }

@@ -9,35 +9,132 @@ class Database {
     private static ?PDO $instance = null;
     private static string $dbPath = __DIR__ . '/../../database/database.sqlite';
 
+    public static function isMysql(): bool {
+        return strtolower((string) (getenv('DB_DRIVER') ?: 'sqlite')) === 'mysql';
+    }
+
     public static function getConnection(): PDO {
         if (self::$instance === null) {
-            $isNew = !file_exists(self::$dbPath);
-            
-            // Ensure the directory exists
-            if (!is_dir(dirname(self::$dbPath))) {
-                mkdir(dirname(self::$dbPath), 0777, true);
-            }
-
             try {
-                self::$instance = new PDO("sqlite:" . self::$dbPath);
-                self::$instance->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-                self::$instance->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-
-                if ($isNew) {
-                    self::initializeSchema();
-                    self::seedData();
+                if (self::isMysql()) {
+                    self::$instance = self::connectMysql();
+                    self::ensureSchemaUpToDate();
+                } else {
+                    self::$instance = self::connectSqlite();
                 }
-                self::ensureSchemaUpToDate();
             } catch (PDOException $e) {
-                die("Database Connection failed: " . $e->getMessage());
+                die('Database Connection failed: ' . $e->getMessage());
             }
         }
         return self::$instance;
     }
 
-    private static function ensureSchemaUpToDate() {
-        self::$instance->exec("PRAGMA foreign_keys = ON;");
+    public static function upsertAppSetting(string $key, string $value): void {
+        $db = self::getConnection();
+        if (self::isMysql()) {
+            $stmt = $db->prepare("
+                INSERT INTO app_settings (`key`, `value`) VALUES (?, ?)
+                ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)
+            ");
+        } else {
+            $stmt = $db->prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)');
+        }
+        $stmt->execute([$key, $value]);
+    }
+
+    private static function connectMysql(): PDO {
+        $host = getenv('DB_HOST') ?: 'db';
+        $port = getenv('DB_PORT') ?: '3306';
+        $name = getenv('DB_DATABASE') ?: 'easytime';
+        $user = getenv('DB_USERNAME') ?: 'easytime';
+        $pass = getenv('DB_PASSWORD') ?: '';
+
+        $pdo = new PDO(
+            "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4",
+            $user,
+            $pass,
+            [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            ]
+        );
+        $pdo->exec('SET NAMES utf8mb4');
+        return $pdo;
+    }
+
+    private static function connectSqlite(): PDO {
+        $isNew = !file_exists(self::$dbPath);
+
+        if (!is_dir(dirname(self::$dbPath))) {
+            mkdir(dirname(self::$dbPath), 0777, true);
+        }
+
+        $pdo = new PDO('sqlite:' . self::$dbPath);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
+        self::$instance = $pdo;
+
+        if ($isNew) {
+            self::initializeSchema();
+            DatabaseSeeder::seedFreshDatabase($pdo);
+        }
+        self::ensureSchemaUpToDate();
+
+        return $pdo;
+    }
+
+    private static function ensureSchemaUpToDate(): void {
         $db = self::$instance;
+        if ($db === null) {
+            return;
+        }
+
+        if (self::isMysql()) {
+            $hasBase = (int) $db->query("
+                SELECT COUNT(*) FROM information_schema.tables
+                WHERE table_schema = DATABASE()
+                  AND table_name IN ('mitarbeiter', 'urlaub')
+            ")->fetchColumn();
+            if ($hasBase < 2) {
+                return;
+            }
+
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS urlaub_kommentar (
+                    id             INT AUTO_INCREMENT PRIMARY KEY,
+                    urlaub_id      INT NOT NULL,
+                    mitarbeiter_id INT NOT NULL,
+                    kommentar      TEXT NOT NULL,
+                    erstellt_am    DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (urlaub_id) REFERENCES urlaub(id) ON DELETE CASCADE,
+                    FOREIGN KEY (mitarbeiter_id) REFERENCES mitarbeiter(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS app_settings (
+                    `key`   VARCHAR(64) PRIMARY KEY,
+                    `value` TEXT NOT NULL
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+            $db->exec("INSERT IGNORE INTO app_settings (`key`, `value`) VALUES ('min_staff_available', '1')");
+            $db->exec("INSERT IGNORE INTO app_settings (`key`, `value`) VALUES ('max_fenstertage', '0')");
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS notifications (
+                    id         INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id    INT NOT NULL,
+                    title      VARCHAR(255) NOT NULL,
+                    message    TEXT NOT NULL,
+                    category   VARCHAR(32) DEFAULT 'info',
+                    is_read    TINYINT DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES mitarbeiter(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+            return;
+        }
+
+        $db->exec('PRAGMA foreign_keys = ON;');
         $hasBaseTables = $db->query("
             SELECT COUNT(*)
             FROM sqlite_master
@@ -68,6 +165,19 @@ class Database {
         ");
         $db->exec("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('min_staff_available', '1')");
         $db->exec("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('max_fenstertage', '0')");
+
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS notifications (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id    INTEGER NOT NULL,
+                title      TEXT NOT NULL,
+                message    TEXT NOT NULL,
+                category   TEXT DEFAULT 'info',
+                is_read    INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(user_id) REFERENCES mitarbeiter(id) ON DELETE CASCADE
+            )
+        ");
     }
 
     private static function initializeSchema() {
@@ -302,99 +412,12 @@ class Database {
         $db->exec($schema);
     }
 
-    private static function seedData() {
-        $db = self::$instance;
-
-        $db->exec("
-            INSERT INTO mitarbeiter (id, personal_id, vorname, nachname, email, position, status, password, berechtigung, urlaubsanspruch, akt_wochen_std)
-            VALUES
-            (1, 'A001', 'Admin', 'User', 'admin@firma.at', 'Leitung', 0, 'admin', 'Administrator', 240, 40),
-            (2, 'M002', 'Lisa', 'Muster', 'lisa@firma.at', 'Mitarbeiter', 0, 'password', 'Mitarbeiter', 200, 38),
-            (3, 'M003', 'Tom', 'Beispiel', 'tom@firma.at', 'Mitarbeiter', 0, 'password', 'Mitarbeiter', 200, 40)
-        ");
-
-        $db->exec("
-            INSERT INTO klassen (id, klasse, mitarbeiter_id) VALUES
-            (1, 'A - Motorrad', 1),
-            (2, 'B - Personenkraftwagen', 1),
-            (3, 'C - Lastkraftwagen', 1),
-            (4, 'CE - Lastkraftwagen Anhänger', 1),
-            (5, 'D - Autobus', 1),
-            (6, 'EzB - Personenkraftwagen Anhänger', 1),
-            (7, 'F - Traktor', 1),
-            (8, 'L17-Schulung', 1),
-            (9, 'Perfektionsfahrten', 1)
-        ");
-
-        $db->exec("
-            INSERT INTO standorte (id, ort, kostenstelle, strasse, hausnummer, plz) VALUES
-            (1, 'Ybbs an der Donau', 11, 'Gewerbestraße', '14', 3370),
-            (2, 'Pöchlarn', 11, 'Regensburgerstraße', '14', 3380),
-            (3, 'Wieselburg an der Erlauf', 11, 'Anton-Fahrner-Gasse', '2', 3250),
-            (4, 'Gmünd', 21, 'Bahnhofstraße', '21', 3950),
-            (5, 'Horn', 31, 'Am Kuhberg', '5', 3580),
-            (6, 'Retz', 31, 'Höfleinerstraße', '13', 2070),
-            (7, 'Waidhofen an der Thaya', 41, 'Unterer Stadtplatz', '38', 3340),
-            (8, 'Zwettl', 51, 'Kremserstraße', '52', 3910),
-            (9, 'St. Pölten', 61, 'Hofstatt', '5', 3100)
-        ");
-
-        $db->exec("
-            INSERT INTO standort_vertretung (id, standort_id, vertreter_id, prioritaet) VALUES
-            (1,1,2,1),(2,1,3,1),(3,2,1,1),(4,2,3,1),(5,3,1,1),(6,3,2,1),
-            (7,1,9,5),(8,2,9,5),(9,3,9,5),(10,4,8,1),(11,8,4,1),(12,5,6,1),
-            (13,6,5,1),(14,7,4,5),(15,1,1,1),(16,2,2,1),(17,3,3,1),(18,4,4,1),
-            (19,5,5,1),(20,6,6,1),(21,7,7,1),(22,8,8,1),(23,9,9,1),(24,8,7,1),
-            (25,7,8,1),(26,4,7,1)
-        ");
-
-        $db->exec("
-            INSERT INTO taetigkeitsart (id, bezeichnung) VALUES
-            (1, 'lektion'), (3, 'regie'), (4, 'pruefung'),
-            (5, 'krank'),   (6, 'feiertag'), (7, 'urlaub')
-        ");
-
-        $db->exec("
-            INSERT INTO eintritt (id, mitarbeiter_id, eintrittsdatum, std_woche, berufsjahr, einstufung, offener_urlaub)
-            VALUES
-            (1, 1, '2020-01-01', 40, 6, 'KV Admin', 0),
-            (2, 2, '2022-03-01', 38, 4, 'KV Büro', 10),
-            (3, 3, '2021-06-15', 40, 5, 'KV Büro', 8)
-        ");
-
-        $db->exec("
-            INSERT INTO event (id, standort_id, start, ende, titel, bemerkung, klassen, urlaub_akzeptabel, in_urlaub, eventtyp, status)
-            VALUES (1, 1, date('now','+12 day'), date('now','+12 day'), 'Team Event', 'Interne Abstimmung', 'B - Personenkraftwagen', 1, 0, 'Theorie', 0)
-        ");
-
-        $db->exec("
-            INSERT INTO urlaub (id, mitarbeiter_id, beginn, ende, tage_im_urlaub, beginn_in_worten, ende_in_worten, vertretung_id, buero, buero_vertretung_id, genehmigt)
-            VALUES
-            (1, 2, date('now','+10 day'), date('now','+14 day'), 5, 'in 10 Tagen', 'in 14 Tagen', NULL, 1, NULL, 0),
-            (2, 3, date('now','+20 day'), date('now','+22 day'), 3, 'in 20 Tagen', 'in 22 Tagen', 1,    1, 1,    1)
-        ");
-
-        $db->exec("
-            INSERT INTO urlaubssperre (id, von, bis, ganzjaehrig) VALUES (1, '2016-12-27', '2017-01-05', 0)
-        ");
-
-        $db->exec("
-            INSERT INTO urlaub_event (id, event_id, urlaub_id) VALUES (1, 1, 2)
-        ");
-
-        $db->exec("
-            INSERT INTO taetigkeit (id, datum, mitarbeiter_id, taetigkeitsart_id, stunden)
-            VALUES (1, date('now','-1 day'), 2, 1, 7.5), (2, date('now','-1 day'), 3, 3, 8.0)
-        ");
-
-        $db->exec("
-            INSERT INTO uebertrag (mitarbeiter_id, datum, uebertrag_urlaub, uebertrag_ueberstunden, ang_wochen_std, monats_soll)
-            VALUES (2, date('now','start of year'), 2.5, 4.0, 38.0, 152.0)
-        ");
-
-        $db->exec("
-            INSERT INTO zuschlag (mitarbeiter_id, datum, gr10_pro_tag, wochenende, nacht, A, C, E, F, D, theorie)
-            VALUES (2, date('now','-2 day'), 0.5, 0, 0, 0, 0, 0, 0, 0, 0.25)
-        ");
+    public static function reseed(): void {
+        if (self::isMysql()) {
+            throw new \RuntimeException('Reseed ist nur für SQLite (lokale Entwicklung) vorgesehen.');
+        }
+        $pdo = self::getConnection();
+        DatabaseSeeder::resetAndSeed($pdo);
+        self::$instance = $pdo;
     }
 }

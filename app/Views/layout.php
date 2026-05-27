@@ -3,7 +3,7 @@ use App\Core\I18n;
 if (!isset($currentRole)) exit;
 ?>
 <!DOCTYPE html>
-<html lang="<?= $_SESSION['lang'] ?? 'en' ?>" class="antialiased">
+<html lang="<?= $_SESSION['lang'] ?? 'de' ?>" class="antialiased">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -132,9 +132,38 @@ if (!isset($currentRole)) exit;
         .fc-event { border: none !important; border-radius: 4px; padding: 2px 4px; font-weight: 600; font-size: 0.75rem; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;}
         /* KW-Anzeige */
         .fc-daygrid-week-number { font-size: 0.6rem !important; font-weight: 700 !important; color: #E8007D !important; background: rgba(232,0,125,0.08); border-radius: 4px; padding: 1px 5px !important; min-width: 2.2rem; text-align: center; }
-        /* Multi-Auswahl Highlight */
-        .fc-day-multiselected { background-color: rgba(255,214,0,0.3) !important; }
-        .fc-day-multiselected .fc-daygrid-day-number { font-weight: 700 !important; color: #E8007D !important; }
+        #employee-calendar.easytime-cross-month-drag,
+        #ceo-calendar.easytime-cross-month-drag { cursor: crosshair; }
+        #employee-calendar .fc-daygrid-day.easytime-drag-preview,
+        #ceo-calendar .fc-daygrid-day.easytime-drag-preview { background-color: rgba(255,214,0,0.22) !important; }
+        #employee-calendar .fc-daygrid-day.easytime-day-selected,
+        #ceo-calendar .fc-daygrid-day.easytime-day-selected {
+            background-color: rgba(255, 214, 0, 0.38) !important;
+            box-shadow: inset 0 0 0 2px #E8007D;
+        }
+        #employee-calendar .fc-daygrid-day.easytime-day-selected .fc-daygrid-day-number,
+        #ceo-calendar .fc-daygrid-day.easytime-day-selected .fc-daygrid-day-number {
+            font-weight: 700 !important;
+            color: #E8007D !important;
+        }
+        #employee-calendar .fc-event.easytime-event-selected,
+        #ceo-calendar .fc-event.easytime-event-selected {
+            outline: 3px solid #E8007D !important;
+            outline-offset: 2px;
+            box-shadow: 0 0 0 2px #FFD600 !important;
+            z-index: 8 !important;
+        }
+        @media (min-width: 1024px) {
+            .easytime-sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: 18rem;
+                overflow-y: auto;
+                overscroll-behavior: contain;
+            }
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col relative overflow-x-hidden">
@@ -166,9 +195,15 @@ if (!isset($currentRole)) exit;
     </div>
     <?php endif; ?>
 
-    <div class="relative z-10 flex min-h-screen w-full flex-col lg:flex-row" x-data="{ tab: '<?= (isset($_GET['tab']) && $_GET['tab'] === 'team') ? 'team' : 'operations' ?>' }">
-        <aside class="w-full border-b border-lime-200/60 bg-white/80 p-4 shadow-sm backdrop-blur-lg lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:flex-none lg:border-b-0 lg:border-r lg:p-6">
-            <div class="flex h-full flex-col gap-5">
+    <?php
+        $activeTab = $activeTab ?? ($currentRole === 'Employee' ? 'plan' : 'operations');
+        $sidebarTabClass = 'flex items-center justify-between rounded-xl border border-lime-100 px-4 py-3 text-sm font-bold transition-all lg:w-full';
+        $sidebarTabActive = 'bg-lime-400 text-emerald-950 shadow-sm';
+        $sidebarTabIdle = 'bg-yellow-50 text-emerald-700 hover:bg-white';
+    ?>
+    <div class="relative z-10 flex min-h-screen w-full">
+        <aside class="easytime-sidebar w-full shrink-0 border-b border-lime-200/60 bg-white/95 p-4 shadow-sm backdrop-blur-lg lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:w-72 lg:flex-col lg:border-b-0 lg:border-r lg:p-6 lg:overflow-y-auto">
+            <div class="flex h-full min-h-0 flex-col gap-5">
                 <div class="flex items-center gap-3">
                     <img src="/assets/icons/urlaubsplaner_icon.svg" alt="Urlaubsplaner" class="h-12 w-12 rounded-xl shadow-md shadow-lime-400/20">
                     <div>
@@ -179,30 +214,41 @@ if (!isset($currentRole)) exit;
 
                 <nav class="flex flex-wrap gap-2 lg:flex-col" aria-label="Dashboard Navigation">
                     <?php if (in_array($currentRole, ['CEO', 'Admin'], true)): ?>
-                        <button id="ceo-requests-tab-btn" type="button" @click="tab = 'operations'; setTimeout(() => window.dispatchEvent(new Event('resize')), 100);" :class="tab === 'operations' ? 'bg-lime-400 text-emerald-950 shadow-sm' : 'bg-yellow-50 text-emerald-700 hover:bg-white'" class="flex items-center justify-between rounded-xl border border-lime-100 px-4 py-3 text-sm font-bold transition-all lg:w-full">
+                        <a href="/?tab=operations" class="<?= $sidebarTabClass ?> <?= $activeTab === 'operations' ? $sidebarTabActive : $sidebarTabIdle ?>">
                             <span>Kalender & Genehmigungen</span>
                             <span class="text-lime-700">›</span>
-                        </button>
-                        <button type="button" @click="tab = 'team'" :class="tab === 'team' ? 'bg-lime-400 text-emerald-950 shadow-sm' : 'bg-yellow-50 text-emerald-700 hover:bg-white'" class="flex items-center justify-between rounded-xl border border-lime-100 px-4 py-3 text-sm font-bold transition-all lg:w-full">
-                            <span>Team & Stammdaten</span>
+                        </a>
+                        <a href="/?tab=team" class="<?= $sidebarTabClass ?> <?= $activeTab === 'team' ? $sidebarTabActive : $sidebarTabIdle ?>">
+                            <span>Team</span>
                             <span class="text-lime-700">›</span>
-                        </button>
+                        </a>
+                        <a href="/?tab=settings" class="<?= $sidebarTabClass ?> <?= $activeTab === 'settings' ? $sidebarTabActive : $sidebarTabIdle ?>">
+                            <span>Globale Einstellungen</span>
+                            <span class="text-lime-700">›</span>
+                        </a>
                     <?php else: ?>
-                        <a href="#employee-plan" class="rounded-xl border border-lime-100 bg-yellow-50 px-4 py-3 text-sm font-bold text-emerald-700 transition-all hover:bg-white lg:w-full">Urlaub planen</a>
-                        <a href="#employee-overview" class="rounded-xl border border-lime-100 bg-yellow-50 px-4 py-3 text-sm font-bold text-emerald-700 transition-all hover:bg-white lg:w-full">Meine Anträge</a>
-                        <a href="#employee-comments" class="rounded-xl border border-lime-100 bg-yellow-50 px-4 py-3 text-sm font-bold text-emerald-700 transition-all hover:bg-white lg:w-full">Kommentarverlauf</a>
+                        <a href="/?tab=plan" class="<?= $sidebarTabClass ?> <?= $activeTab === 'plan' ? $sidebarTabActive : $sidebarTabIdle ?>">Urlaub planen</a>
+                        <a href="/?tab=overview" class="<?= $sidebarTabClass ?> <?= $activeTab === 'overview' ? $sidebarTabActive : $sidebarTabIdle ?>">Meine Anträge</a>
+                        <a href="/?tab=comments" class="<?= $sidebarTabClass ?> <?= $activeTab === 'comments' ? $sidebarTabActive : $sidebarTabIdle ?>">Kommentarverlauf</a>
                     <?php endif; ?>
+                    <a href="/?tab=inbox" class="<?= $sidebarTabClass ?> <?= $activeTab === 'inbox' ? $sidebarTabActive : $sidebarTabIdle ?>">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+                            Inbox
+                        </span>
+                        <?php if ((int)($notificationUnreadCount ?? 0) > 0): ?>
+                            <span class="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-lime-400 text-emerald-900 font-bold text-xs"><?= (int)$notificationUnreadCount ?></span>
+                        <?php else: ?>
+                            <span class="text-lime-700">›</span>
+                        <?php endif; ?>
+                    </a>
                 </nav>
 
                 <div class="mt-auto grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                    <div class="flex items-center justify-between gap-2 rounded-xl border border-yellow-200 bg-white px-3 py-2 text-sm">
-                        <span class="font-semibold text-emerald-700">Inbox</span>
-                        <span class="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-lime-400 text-emerald-900 font-bold text-xs"><?= (int)($notificationUnreadCount ?? 0) ?></span>
-                    </div>
                     <div class="flex items-center justify-center gap-2 rounded-xl border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm">
-                        <a href="?lang=en" class="<?= ($_SESSION['lang'] ?? 'en') === 'en' ? 'font-bold text-lime-600' : 'text-emerald-600' ?>">EN</a>
+                        <a href="?lang=en" class="<?= ($_SESSION['lang'] ?? 'de') === 'en' ? 'font-bold text-lime-600' : 'text-emerald-600' ?>">EN</a>
                         <span class="text-emerald-300">|</span>
-                        <a href="?lang=de" class="<?= ($_SESSION['lang'] ?? 'en') === 'de' ? 'font-bold text-lime-600' : 'text-emerald-600' ?>">DE</a>
+                        <a href="?lang=de" class="<?= ($_SESSION['lang'] ?? 'de') === 'de' ? 'font-bold text-lime-600' : 'text-emerald-600' ?>">DE</a>
                     </div>
                     <div class="flex flex-col gap-3 rounded-2xl border border-yellow-200 bg-yellow-50/80 p-3 shadow-sm sm:col-span-2 lg:col-span-1">
                         <div class="flex items-center gap-3">
@@ -225,7 +271,7 @@ if (!isset($currentRole)) exit;
         </aside>
 
         <!-- Main Content -->
-        <main class="relative z-10 flex-1 w-full p-4 sm:p-6 lg:p-8 flex flex-col gap-8 overflow-x-hidden">
+        <main class="relative z-10 flex-1 w-full min-w-0 p-4 sm:p-6 lg:ml-72 lg:p-8 flex flex-col gap-8 overflow-x-hidden">
         
         <?php if (isset($_GET['success'])): ?>
             <div class="bg-lime-50 border border-lime-200 text-lime-800 px-4 py-3 rounded-xl text-sm flex items-center shadow-sm mb-4">
@@ -241,28 +287,28 @@ if (!isset($currentRole)) exit;
             <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl text-sm flex items-center shadow-sm mb-4">
                 <svg class="w-5 h-5 mr-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 <?php 
-                    if ($_GET['error'] === 'invalid_mnr') echo (($_SESSION['lang'] ?? 'en') === 'de' ? 'Personalnummer (MNR) darf nur aus Zahlen bestehen!' : 'Staff number (MNR) must only contain digits!');
-                    elseif ($_GET['error'] === 'blocked_period') echo (($_SESSION['lang'] ?? 'en') === 'de' ? 'In diesem Zeitraum ist keine Urlaubsbuchung erlaubt.' : 'Vacation booking is blocked for this selected period.');
-                    elseif ($_GET['error'] === 'request_conflict') echo (($_SESSION['lang'] ?? 'en') === 'de' ? 'Dieser Zeitraum überschneidet sich mit einem bestehenden Urlaubsantrag.' : 'This range overlaps with an existing vacation request.');
-                    elseif ($_GET['error'] === 'blocked_exists') echo (($_SESSION['lang'] ?? 'en') === 'de' ? 'Dieser Sperrbereich existiert bereits oder überschneidet einen bestehenden.' : 'This blocked period already exists or overlaps an existing blocked period.');
-                    elseif ($_GET['error'] === 'past_date') echo (($_SESSION['lang'] ?? 'en') === 'de' ? 'Urlaub kann nicht in der Vergangenheit beantragt werden.' : 'Vacation cannot be requested for past dates.');
-                    elseif ($_GET['error'] === 'coverage_conflict') echo (($_SESSION['lang'] ?? 'en') === 'de' ? 'Genehmigung nicht möglich: Mindestbesetzung würde unterschritten.' : 'Approval failed: minimum staffing would be violated.');
-                    elseif ($_GET['error'] === 'fenstertage_exceeded') echo (($_SESSION['lang'] ?? 'en') === 'de' ? 'Dein Urlaubsantrag enthält zu viele Fenstertage (Brückentage). Bitte teile den Zeitraum auf.' : 'Your request contains too many window days (bridge days). Please split the period.');
-                    elseif ($_GET['error'] === 'self_delete_forbidden') echo (($_SESSION['lang'] ?? 'en') === 'de' ? 'Du kannst deinen eigenen Admin-Account nicht löschen.' : 'You cannot delete your own admin account.');
+                    if ($_GET['error'] === 'invalid_mnr') echo (($_SESSION['lang'] ?? 'de') === 'de' ? 'Personalnummer (MNR) darf nur aus Zahlen bestehen!' : 'Staff number (MNR) must only contain digits!');
+                    elseif ($_GET['error'] === 'blocked_period') echo (($_SESSION['lang'] ?? 'de') === 'de' ? 'In diesem Zeitraum ist keine Urlaubsbuchung erlaubt.' : 'Vacation booking is blocked for this selected period.');
+                    elseif ($_GET['error'] === 'request_conflict') echo (($_SESSION['lang'] ?? 'de') === 'de' ? 'Dieser Zeitraum überschneidet sich mit einem bestehenden Urlaubsantrag.' : 'This range overlaps with an existing vacation request.');
+                    elseif ($_GET['error'] === 'blocked_exists') echo (($_SESSION['lang'] ?? 'de') === 'de' ? 'Dieser Sperrbereich existiert bereits oder überschneidet einen bestehenden.' : 'This blocked period already exists or overlaps an existing blocked period.');
+                    elseif ($_GET['error'] === 'past_date') echo (($_SESSION['lang'] ?? 'de') === 'de' ? 'Urlaub kann nicht in der Vergangenheit beantragt werden.' : 'Vacation cannot be requested for past dates.');
+                    elseif ($_GET['error'] === 'coverage_conflict') echo (($_SESSION['lang'] ?? 'de') === 'de' ? 'Genehmigung nicht möglich: Mindestbesetzung würde unterschritten.' : 'Approval failed: minimum staffing would be violated.');
+                    elseif ($_GET['error'] === 'fenstertage_exceeded') echo (($_SESSION['lang'] ?? 'de') === 'de' ? 'Dein Urlaubsantrag enthält zu viele Fenstertage (Brückentage). Bitte teile den Zeitraum auf.' : 'Your request contains too many window days (bridge days). Please split the period.');
+                    elseif ($_GET['error'] === 'self_delete_forbidden') echo (($_SESSION['lang'] ?? 'de') === 'de' ? 'Du kannst deinen eigenen Admin-Account nicht löschen.' : 'You cannot delete your own admin account.');
                     else echo "An error occurred.";
                 ?>
             </div>
         <?php endif; ?>
 
-        <?php if ($currentRole === 'Employee'): ?>
-            <!-- EMPLOYEE VIEW -->
+        <?php if ($currentRole === 'Employee' && $activeTab === 'plan'): ?>
+            <!-- EMPLOYEE: Urlaub planen -->
             <div id="employee-plan" class="grid grid-cols-1 lg:grid-cols-3 gap-8 scroll-mt-4">
                 <div class="lg:col-span-1">
                     <div class="bg-white rounded-3xl p-8 shadow-xl shadow-lime-900/5 relative overflow-hidden border border-lime-100">
                         <div class="absolute top-0 right-0 w-32 h-32 bg-yellow-100 rounded-bl-full -z-10 mix-blend-multiply opacity-50"></div>
                         <h2 class="text-2xl font-bold text-emerald-900 mb-6 tracking-tight"><?= I18n::get('emp.plan') ?></h2>
                         <p class="text-sm text-emerald-700 mb-5">
-                            <?= (($_SESSION['lang'] ?? 'en') === 'de') ? 'Wähle direkt im Kalender einen Zeitraum oder setze die Daten manuell.' : 'Select a range directly in the calendar or set the dates manually.' ?>
+                            <?= (($_SESSION['lang'] ?? 'de') === 'de') ? 'Wähle direkt im Kalender einen Zeitraum oder setze die Daten manuell.' : 'Select a range directly in the calendar or set the dates manually.' ?>
                         </p>
                         <div class="grid grid-cols-2 gap-2 mb-5">
                             <div class="bg-lime-50 border border-lime-200 rounded-xl p-3">
@@ -282,6 +328,11 @@ if (!isset($currentRole)) exit;
                                 <div class="font-bold text-xl text-emerald-900"><?= (int)($userVacationStats['remaining'] ?? 0) ?></div>
                             </div>
                         </div>
+                        <?php if (($maxFenstertage ?? 0) > 0): ?>
+                            <p class="text-sm text-emerald-700 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 mb-5">
+                                <?= sprintf(I18n::get('emp.max_fenstertage'), (int) $maxFenstertage) ?>
+                            </p>
+                        <?php endif; ?>
                         <form id="employee-request-form" action="/?action=create_request" method="POST" x-data="vacationForm()" class="space-y-5">
                             <div>
                                 <label class="block text-sm font-semibold text-emerald-800 mb-1.5"><?= I18n::get('emp.start_date') ?></label>
@@ -304,38 +355,40 @@ if (!isset($currentRole)) exit;
                 </div>
 
                 <div class="lg:col-span-2 bg-white p-8 rounded-3xl shadow-xl border border-lime-100">
-                    <div class="flex flex-wrap justify-between gap-3 items-center mb-6">
+                    <div class="flex flex-wrap justify-between gap-3 items-center mb-4">
                         <h2 class="text-2xl font-bold text-emerald-900 tracking-tight"><?= I18n::get('ceo.calendar') ?></h2>
-                        <div class="flex flex-wrap gap-2">
-                            <button type="button" id="emp-multi-toggle" onclick="toggleEmpMultiMode()"
-                                class="px-3 py-2 rounded-lg text-sm font-semibold border border-yellow-200 text-emerald-700 hover:bg-yellow-50 transition-colors">
-                                ☰ Multi-Auswahl
-                            </button>
-                            <button type="button" onclick="openExportModal(false)" class="px-3 py-2 rounded-lg text-sm font-semibold border border-lime-200 text-emerald-700 hover:bg-lime-50">ICS Export</button>
-                        </div>
+                        <button type="button" onclick="openExportModal(false)" class="px-3 py-2 rounded-lg text-sm font-semibold border border-lime-200 text-emerald-700 hover:bg-lime-50">ICS Export</button>
                     </div>
-                    <div id="employee-calendar"></div>
-
-                    <!-- Multi-Auswahl Panel -->
-                    <div id="emp-multi-panel" class="hidden mt-5 bg-yellow-50 border border-yellow-200 rounded-2xl p-5">
-                        <div class="flex items-center justify-between mb-3">
-                            <span id="emp-multi-count" class="font-bold text-emerald-900 text-sm"></span>
-                            <button type="button" onclick="clearEmpMultiSelect()"
-                                class="text-xs font-bold text-red-500 hover:text-red-700 transition-colors">Alle löschen ✕</button>
+                    <p class="text-xs text-emerald-600 mb-4">
+                        Es ist immer nur eine Auswahl aktiv: ein Tag, ein Zeitraum oder ein Termin (farbig markiert).
+                        Am Kalenderrand ziehen wechselt den Monat mit. Infos und Aktionen rechts.
+                    </p>
+                    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                        <div class="xl:col-span-2">
+                            <div id="employee-calendar"></div>
                         </div>
-                        <div id="emp-multi-list" class="flex flex-wrap gap-2 mb-4 text-xs"></div>
-                        <form id="emp-multi-form" action="/?action=create_multi_request" method="POST">
-                            <input type="hidden" id="multi-dates-input" name="multi_dates" value="">
-                            <button type="submit"
-                                class="w-full bg-lime-400 hover:bg-lime-500 text-emerald-900 font-bold py-3 rounded-xl shadow-md shadow-lime-400/30 transition-all">
-                                Ausgewählte Tage beantragen
-                            </button>
-                        </form>
+                        <div class="calendar-side-panel">
+                            <div class="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 h-full">
+                                <h3 class="text-lg font-bold text-emerald-900 mb-3">Kalender Actions</h3>
+                                <p id="employee-calendar-action-empty" class="text-sm text-emerald-700">
+                                    Wähle genau einen Tag, einen Zeitraum oder einen Termin im Kalender.
+                                </p>
+                                <div id="employee-calendar-action-range" class="hidden space-y-3">
+                                    <div id="employee-selected-range-info" class="text-sm text-emerald-800 bg-white border border-lime-200 rounded-xl p-4"></div>
+                                    <p class="text-xs text-emerald-600">Die Daten stehen im Antragsformular links. Dort kannst du den Urlaub absenden.</p>
+                                </div>
+                                <div id="employee-calendar-action-event" class="hidden space-y-3">
+                                    <div id="employee-selected-event-info" class="text-sm text-emerald-800 bg-white border border-yellow-200 rounded-xl p-4"></div>
+                                    <div id="employee-selected-event-actions" class="space-y-2"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div id="employee-overview" class="space-y-6 mt-8">
+        <?php elseif ($currentRole === 'Employee' && $activeTab === 'overview'): ?>
+            <div id="employee-overview" class="space-y-6">
                 <h2 class="text-2xl font-bold text-emerald-900 tracking-tight"><?= I18n::get('emp.timeline') ?></h2>
                 <div class="bg-white rounded-3xl overflow-hidden shadow-xl shadow-lime-900/5 border border-lime-100">
                     <div class="overflow-x-auto">
@@ -392,10 +445,11 @@ if (!isset($currentRole)) exit;
                                 <?php endif; ?>
                             </tbody>
                         </table>
-                    </div>
                 </div>
+            </div>
 
-                <div id="employee-comments" class="bg-white rounded-3xl p-6 shadow-xl shadow-lime-900/5 border border-lime-100 scroll-mt-4">
+        <?php elseif ($currentRole === 'Employee' && $activeTab === 'comments'): ?>
+                <div id="employee-comments" class="bg-white rounded-3xl p-6 shadow-xl shadow-lime-900/5 border border-lime-100">
                     <h3 class="text-xl font-bold text-emerald-900 mb-4">Kommentarverlauf</h3>
                     <div class="space-y-4">
                         <?php foreach ($requests as $req): ?>
@@ -423,36 +477,20 @@ if (!isset($currentRole)) exit;
                         <?php endforeach; ?>
                     </div>
                 </div>
-            </div>
 
-            <div class="bg-white rounded-3xl p-6 shadow-xl shadow-lime-900/5 border border-lime-100">
-                <h3 class="text-xl font-bold text-emerald-900 mb-4">Benachrichtigungen</h3>
-                <div class="space-y-2 max-h-64 overflow-auto pr-1">
-                    <?php foreach (($notificationList ?? []) as $note): ?>
-                        <div class="p-3 rounded-xl border <?= (int)$note['is_read'] === 1 ? 'border-yellow-100 bg-white' : 'border-lime-200 bg-lime-50' ?>">
-                            <div class="font-semibold text-sm text-emerald-900"><?= htmlspecialchars($note['title']) ?></div>
-                            <div class="text-xs text-emerald-700"><?= htmlspecialchars($note['message']) ?></div>
-                            <div class="text-[10px] text-emerald-500 mt-1"><?= htmlspecialchars($note['created_at']) ?></div>
-                        </div>
-                    <?php endforeach; ?>
-                    <?php if (empty($notificationList)): ?>
-                        <div class="text-sm text-emerald-600">Keine Benachrichtigungen.</div>
-                    <?php endif; ?>
-                </div>
-            </div>
+        <?php elseif ($activeTab === 'inbox'): ?>
+            <?php include __DIR__ . '/partials/inbox.php'; ?>
 
-        <?php elseif (in_array($currentRole, ['CEO', 'Admin'], true)): ?>
-            <!-- ADMIN VIEW -->
-            <div>
-                <!-- OPERATIONS TAB -->
-                <div x-show="tab === 'operations'" class="space-y-8">
+        <?php elseif (in_array($currentRole, ['CEO', 'Admin'], true) && $activeTab === 'operations'): ?>
+            <!-- ADMIN: Kalender & Genehmigungen -->
+            <div class="space-y-8">
                     <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
                         <div class="xl:col-span-2 bg-white p-6 rounded-3xl shadow-xl border border-lime-100">
                             <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                                 <h2 class="text-2xl font-bold text-emerald-900">Kalender + Requests</h2>
                                 <button type="button" onclick="openExportModal(true)" class="px-3 py-2 rounded-lg text-sm font-semibold border border-lime-200 text-emerald-700 hover:bg-lime-50">ICS Export</button>
                             </div>
-                            <p class="text-sm text-emerald-700 mb-4">Im Kalender kannst du gesperrte Zeitraeume markieren. Diese Tage sind fuer Mitarbeiter nicht buchbar.</p>
+                            <p class="text-sm text-emerald-700 mb-4">Gesperrte Zeitraeume markieren (fuer Mitarbeiter nicht buchbar). Zeitraum ziehen; am oberen/unteren Rand wechselt der Monat mit. Termine nur in „Kalender Actions“ rechts — ohne Scroll zur Liste.</p>
                             <div id="ceo-calendar"></div>
                         </div>
                         <div class="space-y-4 calendar-side-panel">
@@ -474,22 +512,6 @@ if (!isset($currentRole)) exit;
                                 </div>
                             </div>
                             <div id="calendar-info-meta" class="text-xs text-emerald-700 bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4 hidden"></div>
-                            <div class="space-y-2 mb-4">
-                                <form method="POST" action="/?action=update_min_staff" class="flex items-end gap-2">
-                                    <div class="flex-1">
-                                        <label class="block text-xs font-bold text-emerald-700 mb-1">Mindestbesetzung (Mitarbeiter/Tag)</label>
-                                        <input type="number" min="0" name="min_staff_available" value="<?= (int)($minStaffAvailable ?? 1) ?>" class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2 text-emerald-900 outline-none">
-                                    </div>
-                                    <button type="submit" class="bg-lime-400 hover:bg-lime-500 text-emerald-900 font-bold px-3 py-2 rounded-xl">✓</button>
-                                </form>
-                                <form method="POST" action="/?action=update_max_fenstertage" class="flex items-end gap-2">
-                                    <div class="flex-1">
-                                        <label class="block text-xs font-bold text-emerald-700 mb-1">Max. Fenstertage pro Antrag <span class="font-normal text-emerald-500">(0 = kein Limit)</span></label>
-                                        <input type="number" min="0" name="max_fenstertage" value="<?= (int)($maxFenstertage ?? 0) ?>" class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2 text-emerald-900 outline-none">
-                                    </div>
-                                    <button type="submit" class="bg-lime-400 hover:bg-lime-500 text-emerald-900 font-bold px-3 py-2 rounded-xl">✓</button>
-                                </form>
-                            </div>
                             </div>
                             </div>
 
@@ -704,10 +726,9 @@ if (!isset($currentRole)) exit;
                             <?php endif; ?>
                         </div>
                     </div>
-                </div>
+            </div>
 
-                <!-- TEAM TAB -->
-                <div x-show="tab === 'team'" style="display: none;">
+        <?php elseif (in_array($currentRole, ['CEO', 'Admin'], true) && $activeTab === 'team'): ?>
                     <?php $isTeamDetail = isset($_GET['team_view']) && $_GET['team_view'] === 'detail'; ?>
                     <?php if ($isTeamDetail && isset($selectedTeamUser) && $selectedTeamUser): ?>
                         <div class="bg-white rounded-3xl p-6 shadow-xl shadow-lime-900/5 border border-lime-100">
@@ -728,7 +749,7 @@ if (!isset($currentRole)) exit;
                             <?php if ($isOwnAdminAccount): ?>
                                 <div class="flex justify-end mb-3">
                                     <span class="text-xs font-semibold text-emerald-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-1.5">
-                                        <?= (($_SESSION['lang'] ?? 'en') === 'de') ? 'Eigener Admin-Account kann nicht gelöscht werden.' : 'Own admin account cannot be deleted.' ?>
+                                        <?= (($_SESSION['lang'] ?? 'de') === 'de') ? 'Eigener Admin-Account kann nicht gelöscht werden.' : 'Own admin account cannot be deleted.' ?>
                                     </span>
                                 </div>
                             <?php else: ?>
@@ -852,8 +873,30 @@ if (!isset($currentRole)) exit;
                             </div>
                         </div>
                     <?php endif; ?>
-                </div>
 
+        <?php elseif (in_array($currentRole, ['CEO', 'Admin'], true) && $activeTab === 'settings'): ?>
+            <div class="bg-white rounded-3xl p-6 shadow-xl shadow-lime-900/5 border border-lime-100 max-w-3xl">
+                <h2 class="text-2xl font-bold text-emerald-900 mb-2"><?= I18n::get('settings.title') ?></h2>
+                <p class="text-sm text-emerald-600 mb-6"><?= I18n::get('settings.holidays_note') ?></p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <form method="POST" action="/?action=update_min_staff" class="flex items-end gap-2">
+                        <div class="flex-1">
+                            <label class="block text-xs font-bold text-emerald-700 mb-1"><?= I18n::get('settings.min_staff') ?></label>
+                            <input type="number" min="0" name="min_staff_available" value="<?= (int)($minStaffAvailable ?? 1) ?>" class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2 text-emerald-900 outline-none">
+                        </div>
+                        <button type="submit" class="bg-lime-400 hover:bg-lime-500 text-emerald-900 font-bold px-3 py-2 rounded-xl">✓</button>
+                    </form>
+                    <form method="POST" action="/?action=update_max_fenstertage" class="flex items-end gap-2">
+                        <div class="flex-1">
+                            <label class="block text-xs font-bold text-emerald-700 mb-1">
+                                <?= I18n::get('settings.max_fenstertage') ?>
+                                <span class="font-normal text-emerald-500"><?= I18n::get('settings.max_fenstertage_hint') ?></span>
+                            </label>
+                            <input type="number" min="0" name="max_fenstertage" value="<?= (int)($maxFenstertage ?? 0) ?>" class="w-full bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2 text-emerald-900 outline-none">
+                        </div>
+                        <button type="submit" class="bg-lime-400 hover:bg-lime-500 text-emerald-900 font-bold px-3 py-2 rounded-xl">✓</button>
+                    </form>
+                </div>
             </div>
         <?php endif; ?>
         </main>
@@ -890,7 +933,7 @@ if (!isset($currentRole)) exit;
 
     <script>
         const fcEvents = <?= isset($fcEvents) ? json_encode($fcEvents) : '[]' ?>;
-        const currentLang = '<?= $_SESSION['lang'] ?? 'en' ?>';
+        const currentLang = '<?= $_SESSION['lang'] ?? 'de' ?>';
         const currentRole = '<?= $currentRole ?>';
         const requestLookup = <?= isset($requests) ? json_encode($requests) : '[]' ?>;
         const blockedPeriodLookup = <?= isset($blockedPeriods) ? json_encode($blockedPeriods) : '[]' ?>;
@@ -898,9 +941,14 @@ if (!isset($currentRole)) exit;
             .filter((e) => e.extendedProps && e.extendedProps.isBlocked)
             .map((e) => ({ start: e.start, end: e.end }));
         let ceoCalendarInstance = null;
+        let employeeCalendarInstance = null;
         let ceoSelectedRange = null;
         const ceoSelectionStorageKey = 'easytime_ceo_calendar_selection';
-        let ceoProgrammaticSelect = false;
+        let suppressEmpDateClick = false;
+        const calendarSelection = {
+            'employee-calendar': { type: null, start: null, end: null, requestId: null },
+            'ceo-calendar': { type: null, start: null, end: null, requestId: null }
+        };
         
         document.addEventListener('DOMContentLoaded', function() {
             function formatLocalDate(dateObj) {
@@ -910,13 +958,229 @@ if (!isset($currentRole)) exit;
                 return `${year}-${month}-${day}`;
             }
 
-            function focusRequestInOverview(requestId) {
-                if (!requestId) return;
-                const target = document.querySelector(`[data-request-id="${requestId}"]`);
-                if (!target) return;
-                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                target.classList.add('ring-2', 'ring-lime-400');
-                setTimeout(() => target.classList.remove('ring-2', 'ring-lime-400'), 1800);
+            function addDaysYmd(ymd, days) {
+                const d = new Date(ymd + 'T12:00:00');
+                d.setDate(d.getDate() + days);
+                return formatLocalDate(d);
+            }
+
+            function compareYmd(a, b) {
+                return a < b ? -1 : a > b ? 1 : 0;
+            }
+
+            function eachDayInclusive(startYmd, endInclusiveYmd) {
+                const out = [];
+                const start = compareYmd(startYmd, endInclusiveYmd) <= 0 ? startYmd : endInclusiveYmd;
+                const end = compareYmd(startYmd, endInclusiveYmd) <= 0 ? endInclusiveYmd : startYmd;
+                for (let cur = start; compareYmd(cur, end) <= 0; cur = addDaysYmd(cur, 1)) {
+                    out.push(cur);
+                }
+                return out;
+            }
+
+            function dayElFromPoint(x, y) {
+                const hit = document.elementFromPoint(x, y);
+                return hit ? hit.closest('.fc-daygrid-day') : null;
+            }
+
+            function getCalendarInstanceById(calendarId) {
+                return calendarId === 'employee-calendar' ? employeeCalendarInstance : ceoCalendarInstance;
+            }
+
+            function isYmdInRange(ymd, startYmd, endExclusiveYmd) {
+                return ymd >= startYmd && ymd < endExclusiveYmd;
+            }
+
+            function eachDayInRangeExclusive(startYmd, endExclusiveYmd) {
+                const days = [];
+                for (let cur = startYmd; cur < endExclusiveYmd; cur = addDaysYmd(cur, 1)) {
+                    days.push(cur);
+                }
+                return days;
+            }
+
+            function clearRangeVisual(calendarId) {
+                const root = document.getElementById(calendarId);
+                root?.querySelectorAll('.easytime-day-selected').forEach((el) => {
+                    el.classList.remove('easytime-day-selected');
+                });
+                root?.querySelectorAll('.easytime-drag-preview').forEach((el) => {
+                    el.classList.remove('easytime-drag-preview');
+                });
+                getCalendarInstanceById(calendarId)?.unselect();
+            }
+
+            function clearEventVisual(calendarId) {
+                document.getElementById(calendarId)?.querySelectorAll('.easytime-event-selected').forEach((el) => {
+                    el.classList.remove('easytime-event-selected');
+                });
+            }
+
+            function applyRangeVisual(calendarId, startYmd, endExclusiveYmd, syncFcSelect) {
+                const root = document.getElementById(calendarId);
+                if (!root) return;
+                eachDayInRangeExclusive(startYmd, endExclusiveYmd).forEach((ymd) => {
+                    root.querySelector('.fc-daygrid-day[data-date="' + ymd + '"]')
+                        ?.classList.add('easytime-day-selected');
+                });
+                if (syncFcSelect) {
+                    getCalendarInstanceById(calendarId)?.select(startYmd, endExclusiveYmd);
+                }
+            }
+
+            function applyEventVisual(calendarId, requestId, fcEventEl) {
+                clearEventVisual(calendarId);
+                let el = fcEventEl || null;
+                if (!el && requestId) {
+                    el = document.querySelector(
+                        '#' + calendarId + ' .fc-event[data-request-id="' + requestId + '"]'
+                    );
+                }
+                if (el) el.classList.add('easytime-event-selected');
+            }
+
+            function reapplySelectionVisuals(calendarId) {
+                const sel = calendarSelection[calendarId];
+                if (!sel || !sel.type) return;
+                if (sel.type === 'range' && sel.start && sel.end) {
+                    clearRangeVisual(calendarId);
+                    applyRangeVisual(calendarId, sel.start, sel.end, false);
+                } else if (sel.type === 'event' && sel.requestId) {
+                    applyEventVisual(calendarId, sel.requestId, null);
+                }
+            }
+
+            function showEmployeeRangePanel(startYmd, endExclusiveYmd) {
+                const endInclusive = addDaysYmd(endExclusiveYmd, -1);
+                const info = document.getElementById('employee-selected-range-info');
+                const isSingle = startYmd === endInclusive;
+                if (info) {
+                    info.innerHTML = isSingle
+                        ? '<div class="font-bold text-base mb-1">Tag ausgewählt</div><div>' + startYmd + '</div>'
+                        : '<div class="font-bold text-base mb-1">Zeitraum ausgewählt</div><div>' + startYmd + ' bis ' + endInclusive + '</div>';
+                }
+                document.getElementById('employee-calendar-action-empty')?.classList.add('hidden');
+                document.getElementById('employee-calendar-action-event')?.classList.add('hidden');
+                document.getElementById('employee-calendar-action-range')?.classList.remove('hidden');
+            }
+
+            function setCalendarRangeSelection(calendarId, startYmd, endExclusiveYmd, syncFcSelect) {
+                calendarSelection[calendarId] = {
+                    type: 'range',
+                    start: startYmd,
+                    end: endExclusiveYmd,
+                    requestId: null
+                };
+                clearEventVisual(calendarId);
+                clearRangeVisual(calendarId);
+                applyRangeVisual(calendarId, startYmd, endExclusiveYmd, syncFcSelect !== false);
+                if (calendarId === 'employee-calendar') {
+                    showEmployeeRangePanel(startYmd, endExclusiveYmd);
+                }
+            }
+
+            function setCalendarEventSelection(calendarId, requestId, fcEventEl) {
+                calendarSelection[calendarId] = {
+                    type: 'event',
+                    start: null,
+                    end: null,
+                    requestId: String(requestId)
+                };
+                clearRangeVisual(calendarId);
+                applyEventVisual(calendarId, requestId, fcEventEl);
+                if (calendarId === 'employee-calendar') {
+                    showEmployeeEventDetails(requestId);
+                } else {
+                    renderCeoEventDetails(requestId);
+                }
+            }
+
+            function attachCrossMonthDrag(calendar, calendarEl, onCommitRange) {
+                if (!calendar || !calendarEl) return;
+                const EDGE_PX = 52;
+                const NAV_COOLDOWN_MS = 380;
+                let anchorYmd = null;
+                let lastNavAt = 0;
+                let active = false;
+                let dragMoved = false;
+
+                function clearPreview() {
+                    calendarEl.querySelectorAll('.easytime-drag-preview').forEach((el) => {
+                        el.classList.remove('easytime-drag-preview');
+                    });
+                }
+
+                function previewRange(startYmd, endInclusiveYmd) {
+                    clearPreview();
+                    eachDayInclusive(startYmd, endInclusiveYmd).forEach((ymd) => {
+                        const cell = calendarEl.querySelector('.fc-daygrid-day[data-date="' + ymd + '"]');
+                        if (cell) cell.classList.add('easytime-drag-preview');
+                    });
+                }
+
+                function maybeChangeMonth(e) {
+                    const rect = calendarEl.getBoundingClientRect();
+                    const now = Date.now();
+                    if (now - lastNavAt < NAV_COOLDOWN_MS) return;
+                    if (e.clientY < rect.top + EDGE_PX) {
+                        calendar.prev();
+                        lastNavAt = now;
+                    } else if (e.clientY > rect.bottom - EDGE_PX) {
+                        calendar.next();
+                        lastNavAt = now;
+                    }
+                }
+
+                function onPointerMove(e) {
+                    if (!active || !anchorYmd) return;
+                    dragMoved = true;
+                    maybeChangeMonth(e);
+                    const dayEl = dayElFromPoint(e.clientX, e.clientY);
+                    const hoverYmd = dayEl ? dayEl.getAttribute('data-date') : null;
+                    if (!hoverYmd) return;
+                    const start = compareYmd(anchorYmd, hoverYmd) <= 0 ? anchorYmd : hoverYmd;
+                    const endInclusive = compareYmd(anchorYmd, hoverYmd) <= 0 ? hoverYmd : anchorYmd;
+                    previewRange(start, endInclusive);
+                }
+
+                function endDrag(e) {
+                    if (!active) return;
+                    active = false;
+                    calendarEl.classList.remove('easytime-cross-month-drag');
+                    document.removeEventListener('pointermove', onPointerMove);
+                    document.removeEventListener('pointerup', endDrag);
+                    clearPreview();
+                    const dayEl = dayElFromPoint(e.clientX, e.clientY);
+                    const hoverYmd = dayEl ? dayEl.getAttribute('data-date') : anchorYmd;
+                    if (dragMoved && anchorYmd && hoverYmd && typeof onCommitRange === 'function') {
+                        if (calendarEl.id === 'employee-calendar') {
+                            suppressEmpDateClick = true;
+                        }
+                        const start = compareYmd(anchorYmd, hoverYmd) <= 0 ? anchorYmd : hoverYmd;
+                        const endInclusive = compareYmd(anchorYmd, hoverYmd) <= 0 ? hoverYmd : anchorYmd;
+                        onCommitRange(start, addDaysYmd(endInclusive, 1), e);
+                    }
+                    anchorYmd = null;
+                    dragMoved = false;
+                }
+
+                calendarEl.addEventListener('pointerdown', function(e) {
+                    if (e.button !== 0) return;
+                    if (e.target.closest('.fc-event, .fc-button, a, button, input, select, textarea, label')) return;
+                    const dayEl = e.target.closest('.fc-daygrid-day');
+                    if (!dayEl) return;
+                    const ymd = dayEl.getAttribute('data-date');
+                    if (!ymd) return;
+                    if (calendarEl.id === 'employee-calendar' && hasBlockedOverlap(ymd, addDaysYmd(ymd, 1))) return;
+                    anchorYmd = ymd;
+                    active = true;
+                    dragMoved = false;
+                    lastNavAt = 0;
+                    calendarEl.classList.add('easytime-cross-month-drag');
+                    previewRange(ymd, ymd);
+                    document.addEventListener('pointermove', onPointerMove);
+                    document.addEventListener('pointerup', endDrag);
+                });
             }
 
             function setEmployeeFormDates(startStr, endExclusiveStr) {
@@ -1031,10 +1295,7 @@ if (!isset($currentRole)) exit;
                 if (!range || !range.start || !range.end) return;
                 ceoSelectedRange = { start: range.start, end: range.end };
                 persistCeoRange(ceoSelectedRange);
-                if (syncCalendarSelection && ceoCalendarInstance) {
-                    ceoProgrammaticSelect = true;
-                    ceoCalendarInstance.select(ceoSelectedRange.start, ceoSelectedRange.end);
-                }
+                setCalendarRangeSelection('ceo-calendar', range.start, range.end, syncCalendarSelection);
                 if (hasBlockedOverlap(ceoSelectedRange.start, ceoSelectedRange.end)) {
                     showActionUnblockSelection(ceoSelectedRange.start, ceoSelectedRange.end);
                 } else {
@@ -1104,7 +1365,72 @@ if (!isset($currentRole)) exit;
                 document.getElementById('calendar-action-event')?.classList.add('hidden');
             }
 
+            function clearEmployeeCalendarActions() {
+                calendarSelection['employee-calendar'] = { type: null, start: null, end: null, requestId: null };
+                clearRangeVisual('employee-calendar');
+                clearEventVisual('employee-calendar');
+                document.getElementById('employee-calendar-action-empty')?.classList.remove('hidden');
+                document.getElementById('employee-calendar-action-range')?.classList.add('hidden');
+                document.getElementById('employee-calendar-action-event')?.classList.add('hidden');
+            }
+
+            function employeeStatusLabel(status) {
+                const labels = {
+                    approved: '<?= I18n::get('emp.status_approved') ?>',
+                    rejected: '<?= I18n::get('emp.status_rejected') ?>',
+                    pending: '<?= I18n::get('emp.status_pending') ?>',
+                    storno_requested: '<?= I18n::get('emp.status_storno_requested') ?>',
+                    cancelled: '<?= I18n::get('emp.status_cancelled') ?>'
+                };
+                return labels[status] || status;
+            }
+
+            window.showEmployeeEventDetails = function showEmployeeEventDetails(requestId) {
+                const request = requestLookup.find((r) => String(r.id) === String(requestId));
+                if (!request) return;
+                const info = document.getElementById('employee-selected-event-info');
+                const actions = document.getElementById('employee-selected-event-actions');
+                if (!info || !actions) return;
+
+                info.innerHTML = `
+                    <div class="font-bold text-base mb-2">Antrag #${request.id}</div>
+                    <div><span class="font-semibold">Zeitraum:</span> ${request.start_date} bis ${request.end_date}</div>
+                    <div><span class="font-semibold">Status:</span> ${employeeStatusLabel(request.status)}</div>
+                    <div><span class="font-semibold">Tage:</span> ${request.net_days}</div>
+                `;
+
+                let actionsHtml = '';
+                if (request.status === 'pending') {
+                    actionsHtml = `
+                        <form method="POST" action="/?action=withdraw_request">
+                            <input type="hidden" name="request_id" value="${request.id}">
+                            <button type="submit" class="w-full text-red-600 hover:text-white hover:bg-red-500 border border-red-200 py-2.5 rounded-xl text-sm font-bold transition-colors">
+                                <?= I18n::get('emp.retract') ?>
+                            </button>
+                        </form>`;
+                } else if (request.status === 'approved') {
+                    actionsHtml = `
+                        <form method="POST" action="/?action=request_storno">
+                            <input type="hidden" name="request_id" value="${request.id}">
+                            <button type="submit" class="w-full text-orange-600 hover:text-white hover:bg-orange-500 border border-orange-200 py-2.5 rounded-xl text-sm font-bold transition-colors">
+                                <?= I18n::get('emp.storno') ?>
+                            </button>
+                        </form>`;
+                } else {
+                    actionsHtml = '<p class="text-xs text-emerald-600">Für diesen Status sind hier keine Aktionen verfügbar.</p>';
+                }
+                actions.innerHTML = actionsHtml;
+
+                document.getElementById('employee-calendar-action-empty')?.classList.add('hidden');
+                document.getElementById('employee-calendar-action-range')?.classList.add('hidden');
+                document.getElementById('employee-calendar-action-event')?.classList.remove('hidden');
+            };
+
             window.showActionEventDetails = function showActionEventDetails(requestId) {
+                setCalendarEventSelection('ceo-calendar', requestId, null);
+            };
+
+            function renderCeoEventDetails(requestId) {
                 const request = requestLookup.find((r) => String(r.id) === String(requestId));
                 if (!request) return;
                 const info = document.getElementById('calendar-selected-event-info');
@@ -1171,85 +1497,81 @@ if (!isset($currentRole)) exit;
                     eventDisplay: 'block',
                     unselectAuto: false,
                     unselectCancel: '.calendar-side-panel',
-                    selectable: elemId === 'employee-calendar' || (elemId === 'ceo-calendar' && (currentRole === 'CEO' || currentRole === 'Admin')),
-                    selectAllow: function(info) {
-                        if (elemId !== 'employee-calendar') return true;
-                        return !hasBlockedOverlap(info.startStr, info.endStr);
-                    },
-                    select: function(info) {
-                        if (elemId === 'employee-calendar') {
-                            setEmployeeFormDates(info.startStr, info.endStr);
+                    selectable: false,
+                    dateClick: function(info) {
+                        if (elemId === 'employee-calendar' && suppressEmpDateClick) {
+                            suppressEmpDateClick = false;
                             return;
                         }
-                        if (elemId === 'ceo-calendar' && (currentRole === 'CEO' || currentRole === 'Admin')) {
-                            if (ceoProgrammaticSelect) {
-                                ceoProgrammaticSelect = false;
-                                return;
-                            }
-                            // Persist and update UI without re-triggering programmatic select recursion.
-                            applyCeoSelection({ start: info.startStr, end: info.endStr }, false);
-                        }
-                    },
-                    dateClick: function(info) {
-                        // Multi-Auswahl für Employee-Kalender
-                        if (elemId === 'employee-calendar' && empMultiMode) {
+                        if (elemId === 'employee-calendar') {
                             const dateStr = info.dateStr;
-                            if (empMultiDates.has(dateStr)) {
-                                empMultiDates.delete(dateStr);
-                                info.dayEl.classList.remove('fc-day-multiselected');
-                            } else {
-                                empMultiDates.add(dateStr);
-                                info.dayEl.classList.add('fc-day-multiselected');
-                            }
-                            updateEmpMultiPanel();
+                            const endExclusive = addDaysYmd(dateStr, 1);
+                            if (hasBlockedOverlap(dateStr, endExclusive)) return;
+                            setCalendarRangeSelection('employee-calendar', dateStr, endExclusive, true);
+                            setEmployeeFormDates(dateStr, endExclusive);
                             return;
                         }
                         if (elemId === 'ceo-calendar' && (currentRole === 'CEO' || currentRole === 'Admin')) {
                             const start = info.dateStr;
-                            const endDate = new Date(info.date);
-                            endDate.setDate(endDate.getDate() + 1);
-                            const end = formatLocalDate(endDate);
+                            const end = addDaysYmd(start, 1);
                             applyCeoSelection({ start, end }, true);
                         }
                     },
                     dayCellDidMount: function(arg) {
-                        // Multi-Auswahl Highlight nach Monatsnavigation wiederherstellen
-                        if (elemId === 'employee-calendar' && empMultiMode) {
-                            const d = arg.date;
-                            const key = d.getFullYear() + '-' +
-                                String(d.getMonth() + 1).padStart(2, '0') + '-' +
-                                String(d.getDate()).padStart(2, '0');
-                            if (empMultiDates.has(key)) {
-                                arg.el.classList.add('fc-day-multiselected');
-                            }
+                        const ymd = formatLocalDate(arg.date);
+                        const sel = calendarSelection[elemId];
+                        if (sel && sel.type === 'range' && sel.start && sel.end && isYmdInRange(ymd, sel.start, sel.end)) {
+                            arg.el.classList.add('easytime-day-selected');
                         }
+                    },
+                    eventDidMount: function(arg) {
+                        const requestId = arg.event.extendedProps && arg.event.extendedProps.requestId;
+                        if (requestId) {
+                            arg.el.setAttribute('data-request-id', requestId);
+                        }
+                        const sel = calendarSelection[elemId];
+                        if (sel && sel.type === 'event' && String(sel.requestId) === String(requestId)) {
+                            arg.el.classList.add('easytime-event-selected');
+                        }
+                    },
+                    datesSet: function() {
+                        reapplySelectionVisuals(elemId);
                     },
                     eventClick: function(info) {
                         if (info.event.extendedProps && info.event.extendedProps.isBlocked) {
                             return;
                         }
-                        const requestId = info.event.extendedProps.requestId;
-                        if (elemId === 'ceo-calendar') {
-                            const tabButton = document.getElementById('ceo-requests-tab-btn');
-                            if (tabButton) tabButton.click();
-                            showActionEventDetails(requestId);
-                            setTimeout(() => focusRequestInOverview(requestId), 120);
-                            return;
-                        }
-                        document.getElementById('employee-overview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        setTimeout(() => focusRequestInOverview(requestId), 120);
+                        const requestId = info.event.extendedProps && info.event.extendedProps.requestId;
+                        if (!requestId) return;
+                        info.jsEvent.preventDefault();
+                        setCalendarEventSelection(elemId, requestId, info.el);
                     }
                 });
                 calendar.render();
+                if (elemId === 'employee-calendar') {
+                    employeeCalendarInstance = calendar;
+                    attachCrossMonthDrag(calendar, el, function(startYmd, endExclusive) {
+                        if (hasBlockedOverlap(startYmd, endExclusive)) return;
+                        setCalendarRangeSelection('employee-calendar', startYmd, endExclusive, true);
+                        setEmployeeFormDates(startYmd, endExclusive);
+                    });
+                }
                 if (elemId === 'ceo-calendar') {
                     ceoCalendarInstance = calendar;
+                    attachCrossMonthDrag(calendar, el, function(startYmd, endExclusive) {
+                        applyCeoSelection({ start: startYmd, end: endExclusive }, false);
+                    });
                     const persistedRange = loadPersistedCeoRange();
                     applyCeoSelection(persistedRange || getTodayRange());
                 }
             }
 
-            initFC('employee-calendar');
-            initFC('ceo-calendar');
+            if (document.getElementById('employee-calendar')) {
+                initFC('employee-calendar');
+            }
+            if (document.getElementById('ceo-calendar')) {
+                initFC('ceo-calendar');
+            }
 
             document.getElementById('action-mode-vacation-btn')?.addEventListener('click', function() {
                 const start = document.getElementById('blocked-start-date')?.value;
@@ -1374,99 +1696,6 @@ if (!isset($currentRole)) exit;
             }
         }
 
-        /* ── MULTI-AUSWAHL (Employee-Kalender) ─────────────────────── */
-        let empMultiMode  = false;
-        let empMultiDates = new Set();
-
-        function toggleEmpMultiMode() {
-            empMultiMode = !empMultiMode;
-            const btn = document.getElementById('emp-multi-toggle');
-            if (btn) {
-                if (empMultiMode) {
-                    btn.textContent = '✓ Multi-Auswahl aktiv';
-                    btn.className = 'px-3 py-2 rounded-lg text-sm font-semibold bg-lime-400 text-emerald-900 border border-lime-500 transition-colors';
-                } else {
-                    btn.textContent = '☰ Multi-Auswahl';
-                    btn.className = 'px-3 py-2 rounded-lg text-sm font-semibold border border-yellow-200 text-emerald-700 hover:bg-yellow-50 transition-colors';
-                    clearEmpMultiSelect();
-                }
-            }
-            updateEmpMultiPanel();
-        }
-
-        function clearEmpMultiSelect() {
-            empMultiDates.clear();
-            // Highlights aus allen sichtbaren Zellen entfernen
-            document.querySelectorAll('.fc-day-multiselected').forEach(function(el) {
-                el.classList.remove('fc-day-multiselected');
-            });
-            updateEmpMultiPanel();
-        }
-
-        function updateEmpMultiPanel() {
-            const panel   = document.getElementById('emp-multi-panel');
-            const countEl = document.getElementById('emp-multi-count');
-            const listEl  = document.getElementById('emp-multi-list');
-            const input   = document.getElementById('multi-dates-input');
-            if (!panel) return;
-
-            const dates = Array.from(empMultiDates).sort();
-
-            if (dates.length === 0 || !empMultiMode) {
-                panel.classList.add('hidden');
-                return;
-            }
-            panel.classList.remove('hidden');
-
-            if (countEl) countEl.textContent = dates.length + ' Tag' + (dates.length !== 1 ? 'e' : '') + ' ausgewählt';
-            if (input)   input.value = JSON.stringify(dates);
-
-            // Aufeinanderfolgende Daten zu Zeitraumblöcken zusammenfassen
-            const ranges = [];
-            let rs = dates[0], rp = dates[0];
-            for (let i = 1; i < dates.length; i++) {
-                const diff = (new Date(dates[i]) - new Date(rp)) / 86400000;
-                if (diff <= 1) {
-                    rp = dates[i];
-                } else {
-                    ranges.push({ s: rs, e: rp });
-                    rs = dates[i]; rp = dates[i];
-                }
-            }
-            ranges.push({ s: rs, e: rp });
-
-            if (listEl) {
-                listEl.innerHTML = ranges.map(function(r) {
-                    const label = r.s === r.e ? r.s : r.s + ' → ' + r.e;
-                    return '<span class="inline-flex items-center gap-1 px-3 py-1 bg-lime-100 border border-lime-200 rounded-full text-xs font-semibold text-emerald-800">' +
-                        label +
-                        '<button type="button" onclick="removeEmpRange(\'' + r.s + '\',\'' + r.e + '\')" class="text-red-400 hover:text-red-600 font-bold ml-1">✕</button>' +
-                        '</span>';
-                }).join('');
-            }
-        }
-
-        function removeEmpRange(startStr, endStr) {
-            // Alle Tage im Zeitraum aus der Auswahl entfernen
-            const s = new Date(startStr), e = new Date(endStr);
-            for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
-                const key = d.getFullYear() + '-' +
-                    String(d.getMonth() + 1).padStart(2, '0') + '-' +
-                    String(d.getDate()).padStart(2, '0');
-                empMultiDates.delete(key);
-            }
-            // Highlights auffrischen
-            document.querySelectorAll('.fc-day-multiselected').forEach(function(el) {
-                el.classList.remove('fc-day-multiselected');
-            });
-            document.querySelectorAll('.fc-daygrid-day').forEach(function(el) {
-                const dateAttr = el.getAttribute('data-date');
-                if (dateAttr && empMultiDates.has(dateAttr)) {
-                    el.classList.add('fc-day-multiselected');
-                }
-            });
-            updateEmpMultiPanel();
-        }
     </script>
 </body>
 </html>

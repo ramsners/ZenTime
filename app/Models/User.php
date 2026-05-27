@@ -100,6 +100,20 @@ class User {
         return self::mapEmployeeRow($row);
     }
 
+    /** @return list<int> */
+    public static function getAdminUserIds(): array {
+        $db = Database::getConnection();
+        $stmt = $db->query("
+            SELECT id FROM mitarbeiter
+            WHERE LOWER(COALESCE(berechtigung, '')) IN ('administrator', 'admin', 'ceo')
+        ");
+        $ids = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $ids[] = (int) ($row['id'] ?? 0);
+        }
+        return array_values(array_filter($ids));
+    }
+
     public static function authenticate($emailOrMnr, $password) {
         $db = Database::getConnection();
         $normalizedStaffId = self::normalizeStaffIdentifier((string) $emailOrMnr);
@@ -164,12 +178,20 @@ class User {
     private static function upsertOvertime(int $employeeId, float $overtimeHours): void {
         $db = Database::getConnection();
         $today = date('Y-m-d');
-        $stmt = $db->prepare("
-            INSERT INTO uebertrag (mitarbeiter_id, datum, uebertrag_urlaub, uebertrag_ueberstunden, ang_wochen_std, monats_soll)
-            VALUES (?, ?, 0, ?, NULL, NULL)
-            ON CONFLICT(mitarbeiter_id, datum)
-            DO UPDATE SET uebertrag_ueberstunden = excluded.uebertrag_ueberstunden
-        ");
+        if (Database::isMysql()) {
+            $stmt = $db->prepare("
+                INSERT INTO uebertrag (mitarbeiter_id, datum, uebertrag_urlaub, uebertrag_ueberstunden, ang_wochen_std, monats_soll)
+                VALUES (?, ?, 0, ?, NULL, NULL)
+                ON DUPLICATE KEY UPDATE uebertrag_ueberstunden = VALUES(uebertrag_ueberstunden)
+            ");
+        } else {
+            $stmt = $db->prepare("
+                INSERT INTO uebertrag (mitarbeiter_id, datum, uebertrag_urlaub, uebertrag_ueberstunden, ang_wochen_std, monats_soll)
+                VALUES (?, ?, 0, ?, NULL, NULL)
+                ON CONFLICT(mitarbeiter_id, datum)
+                DO UPDATE SET uebertrag_ueberstunden = excluded.uebertrag_ueberstunden
+            ");
+        }
         $stmt->execute([$employeeId, $today, $overtimeHours]);
     }
 

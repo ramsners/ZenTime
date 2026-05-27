@@ -1,3 +1,54 @@
+# EasyTime
+
+## Lokale Entwicklung (SQLite)
+
+```bash
+pnpm install   # optional
+pnpm dev       # http://localhost:8000
+```
+
+Datenbank: `database/database.sqlite` (wird beim ersten Start automatisch angelegt).
+
+### Demo-Daten neu laden
+
+Alle **Demo-Inhalte** (Standorte, Urlaube, Events, Tätigkeiten, …) werden zurückgesetzt und neu erzeugt.  
+**Nicht** betroffen sind nur die drei festen Test-Accounts (Admin, Lisa, Tom) mit den Logins unten.
+
+**Wichtig:** Eigene Änderungen in der App (neue Mitarbeiter, geänderte Urlaubsanträge, App-Einstellungen, Kommentare, …) gehen beim Reseed **verloren** und werden nicht gespeichert.
+
+```bash
+pnpm db:seed
+# oder: php scripts/seed-database.php
+```
+
+### Test-Zugänge
+
+| Rolle | Login (E-Mail oder Personal-ID) | Passwort |
+|--------|----------------------------------|----------|
+| **Administrator** | `admin@firma.at` oder `A001` | `admin` |
+| **Mitarbeiter** | `lisa@firma.at` oder `M002` | `password` |
+| **Mitarbeiter** | `tom@firma.at` oder `M003` | `password` |
+
+Für Admin-Funktionen: **Administrator**-Account. Für die normale Mitarbeiter-Ansicht: **Lisa** oder **Tom**.
+
+---
+
+## Docker (empfohlen)
+
+Siehe **[README-DOCKER.md](README-DOCKER.md)** für lokales Starten und Server-Deploy mit MariaDB.
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+# http://localhost:8080
+```
+
+Legacy-Daten: `python3 database/convert_import.py` → `docker compose --profile migrate run --rm migrate`
+
+---
+
+## HTL-Projekt-Vorlage (ApexTime)
+
 Alles klar, ich packe euch jetzt das **Komplettpaket** für euer HTL-Projekt zusammen. Wenn ihr das so umsetzt, habt ihr die Architektur (MVC), die Datenbank (Relational), die Logik (Login/Check) und die Anforderungen (Austauschbarkeit) komplett abgedeckt.
 
 ### 🚀 Projekt-Name: **ApexTime**

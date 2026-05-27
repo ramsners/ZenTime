@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Core\AustrianHolidays;
 use App\Core\Database;
 
 class Request {
@@ -94,7 +95,10 @@ class Request {
             INSERT INTO urlaub (mitarbeiter_id, beginn, ende, tage_im_urlaub, beginn_in_worten, ende_in_worten, vertretung_id, buero, buero_vertretung_id, genehmigt)
             VALUES (?, ?, ?, ?, NULL, NULL, NULL, 0, NULL, 0)
         ");
-        return $stmt->execute([(int) $userId, $startDate, $endDate, (int) $netDays]);
+        if (!$stmt->execute([(int) $userId, $startDate, $endDate, (int) $netDays])) {
+            return false;
+        }
+        return (int) $db->lastInsertId();
     }
 
     public static function createAdminVacation($userId, $approverId, $startDate, $endDate, $netDays, $comment = null) {
@@ -264,45 +268,15 @@ class Request {
 
     public static function getSetting(string $key, string $default = ''): string {
         $db   = Database::getConnection();
-        $stmt = $db->prepare("SELECT value FROM app_settings WHERE key = ? LIMIT 1");
+        $keyCol = Database::isMysql() ? '`key`' : 'key';
+        $stmt = $db->prepare("SELECT value FROM app_settings WHERE {$keyCol} = ? LIMIT 1");
         $stmt->execute([$key]);
         $val  = $stmt->fetchColumn();
         return ($val !== false) ? (string) $val : $default;
     }
 
     public static function setSetting(string $key, string $value): void {
-        $db   = Database::getConnection();
-        $stmt = $db->prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)");
-        $stmt->execute([$key, $value]);
-    }
-
-    /* ── Österreichische Feiertage für ein Jahr ─────────────────── */
-
-    private static function getAustrianHolidays(int $year): array {
-        $fixed = [
-            "$year-01-01", // Neujahr
-            "$year-01-06", // Heilige Drei Könige
-            "$year-05-01", // Staatsfeiertag
-            "$year-08-15", // Mariä Himmelfahrt
-            "$year-10-26", // Nationalfeiertag
-            "$year-11-01", // Allerheiligen
-            "$year-12-08", // Mariä Empfängnis
-            "$year-12-25", // Christag
-            "$year-12-26", // Stefanitag
-        ];
-
-        // Ostersonntag (Gaußsche Formel via PHP)
-        $easterTs  = easter_date($year);
-        $easter    = (new \DateTime())->setTimestamp($easterTs);
-
-        $variable = [
-            (clone $easter)->modify('+1 day')->format('Y-m-d'),   // Ostermontag
-            (clone $easter)->modify('+39 days')->format('Y-m-d'), // Christi Himmelfahrt
-            (clone $easter)->modify('+50 days')->format('Y-m-d'), // Pfingstmontag
-            (clone $easter)->modify('+60 days')->format('Y-m-d'), // Fronleichnam
-        ];
-
-        return array_merge($fixed, $variable);
+        Database::upsertAppSetting($key, $value);
     }
 
     /**
@@ -317,7 +291,7 @@ class Request {
         // Feiertage für alle betroffenen Jahre sammeln
         $holidays = [];
         for ($y = (int) $start->format('Y'); $y <= (int) $end->format('Y'); $y++) {
-            foreach (self::getAustrianHolidays($y) as $h) {
+            foreach (AustrianHolidays::getDatesForYear($y) as $h) {
                 $holidays[$h] = true;
             }
         }

@@ -5,7 +5,7 @@ $isReset = isset($_GET['action']) && $_GET['action'] === 'reset_password' && iss
 $isForgot = isset($_GET['forgot']);
 ?>
 <!DOCTYPE html>
-<html lang="<?= $_SESSION['lang'] ?? 'en' ?>" class="antialiased h-full">
+<html lang="<?= $_SESSION['lang'] ?? 'de' ?>" class="antialiased h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -116,9 +116,9 @@ $isForgot = isset($_GET['forgot']);
 <body class="h-full bg-yellow-50 text-emerald-950 flex relative">
     <!-- Language Toggle -->
     <div class="absolute top-4 right-4 z-50 flex gap-2 bg-white/70 backdrop-blur px-3 py-1.5 rounded-full border border-yellow-200 shadow-sm">
-        <a href="?lang=en" class="<?= ($_SESSION['lang'] ?? 'en') === 'en' ? 'font-bold text-lime-600' : 'text-emerald-600' ?>">EN</a>
+        <a href="?lang=en" class="<?= ($_SESSION['lang'] ?? 'de') === 'en' ? 'font-bold text-lime-600' : 'text-emerald-600' ?>">EN</a>
         <span class="text-emerald-300">|</span>
-        <a href="?lang=de" class="<?= ($_SESSION['lang'] ?? 'en') === 'de' ? 'font-bold text-lime-600' : 'text-emerald-600' ?>">DE</a>
+        <a href="?lang=de" class="<?= ($_SESSION['lang'] ?? 'de') === 'de' ? 'font-bold text-lime-600' : 'text-emerald-600' ?>">DE</a>
     </div>
 
     <!-- Left Side: Image / Holiday Vibe -->

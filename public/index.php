@@ -10,15 +10,22 @@ use App\Models\User;
 use App\Models\Request as VacationRequest;
 use App\Models\RequestComment;
 use App\Models\Department;
+use App\Models\Notification;
+use App\Services\NotificationService;
 use App\Core\I18n;
+use App\Core\AustrianHolidays;
 
 session_start();
+
+if (!isset($_SESSION['lang'])) {
+    $_SESSION['lang'] = 'de';
+}
 
 $action = $_GET['action'] ?? null;
 
 // Handle Language Switch
 if (isset($_GET['lang'])) {
-    $_SESSION['lang'] = in_array($_GET['lang'], ['en', 'de']) ? $_GET['lang'] : 'en';
+    $_SESSION['lang'] = in_array($_GET['lang'], ['en', 'de']) ? $_GET['lang'] : 'de';
     header("Location: " . strtok($_SERVER["REQUEST_URI"], '?')); // strip query to avoid reload loop
     exit;
 }
@@ -193,10 +200,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header("Location: /?error=fenstertage_exceeded");
                 exit;
             }
-            if (!$created) {
+            if ($created === false) {
                 header("Location: /?error=request_conflict");
                 exit;
             }
+            NotificationService::onVacationRequested((int) $created, (int) $currentUser['id']);
             header("Location: /?success=created");
             exit;
         }
@@ -212,7 +220,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'request_storno' && $currentRole === 'Employee') {
         if (!empty($_POST['request_id'])) {
-            VacationRequest::requestStorno($_POST['request_id'], $currentUser['id']);
+            $rid = (int) $_POST['request_id'];
+            if (VacationRequest::requestStorno($rid, $currentUser['id'])) {
+                NotificationService::onStornoRequested($rid, (int) $currentUser['id']);
+            }
             header("Location: /?success=action_success");
             exit;
         }
@@ -230,6 +241,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             if ($comment !== '') {
                 RequestComment::create((int) $requestId, (int) $currentUser['id'], $comment);
+            }
+            if (in_array((string) $status, ['approved', 'rejected', 'cancelled'], true)) {
+                NotificationService::onVacationDecided((int) $requestId, (string) $status);
             }
             header("Location: /?success=decided");
             exit;
@@ -367,14 +381,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'update_min_staff' && $isAdmin) {
         $val = max(0, (int) ($_POST['min_staff_available'] ?? 1));
         VacationRequest::setSetting('min_staff_available', (string) $val);
-        header("Location: /?success=action_success");
+        header("Location: /?tab=settings&success=action_success");
         exit;
     }
 
     if ($action === 'update_max_fenstertage' && $isAdmin) {
         $val = max(0, (int) ($_POST['max_fenstertage'] ?? 0));
         VacationRequest::setSetting('max_fenstertage', (string) $val);
-        header("Location: /?success=action_success");
+        header("Location: /?tab=settings&success=action_success");
         exit;
     }
 
@@ -410,7 +424,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($range['start'] < $today) { $failed++; continue; }
             $netDays = (int) ((strtotime($range['end']) - strtotime($range['start'])) / 86400) + 1;
             $ok = VacationRequest::create($currentUser['id'], $range['start'], $range['end'], $netDays);
-            if ($ok === true || (is_int($ok) && $ok > 0)) {
+            if (is_int($ok) && $ok > 0) {
+                NotificationService::onVacationRequested($ok, (int) $currentUser['id']);
                 $created++;
             } else {
                 $failed++;
@@ -466,11 +481,33 @@ if ($isAdmin) {
     $blockedPeriods = VacationRequest::getBlockedPeriods();
 }
 
-$notificationList = [];
-$notificationUnreadCount = 0;
+$notificationList = Notification::getByUserId((int) $currentUser['id'], 80);
+$notificationUnreadCount = Notification::countUnread((int) $currentUser['id']);
+$activeTab = $_GET['tab'] ?? ($isAdmin ? 'operations' : 'plan');
+if ($isAdmin) {
+    if (!in_array($activeTab, ['operations', 'team', 'settings', 'inbox'], true)) {
+        $activeTab = 'operations';
+    }
+} else {
+    if (!in_array($activeTab, ['plan', 'overview', 'comments', 'inbox'], true)) {
+        $activeTab = 'plan';
+    }
+}
+if ($activeTab === 'inbox') {
+    Notification::markAllAsRead((int) $currentUser['id']);
+    $notificationUnreadCount = 0;
+    foreach ($notificationList as &$notificationRow) {
+        $notificationRow['is_read'] = 1;
+    }
+    unset($notificationRow);
+}
 $userVacationStats = VacationRequest::calculateUserVacationStats($currentUser['id']);
 $minStaffAvailable = (int) VacationRequest::getSetting('min_staff_available', '1');
 $maxFenstertage    = (int) VacationRequest::getSetting('max_fenstertage', '0');
+if ($isAdmin) {
+    $y = (int) date('Y');
+    AustrianHolidays::warmCache([$y, $y + 1]);
+}
 $requestCommentsById = RequestComment::getByRequestIds(array_column($requests, 'id'));
 $recentAuditLogs = [];
 $capacitySummary = $isAdmin ? VacationRequest::getCapacitySummary(date('Y-m-d'), date('Y-m-d', strtotime('+30 days'))) : null;

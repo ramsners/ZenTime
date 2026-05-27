@@ -1,4 +1,4 @@
-Project ZenTime {
+Project EasyTime {
   database_type: "SQLite"
   Note: "Zeiterfassung & Urlaubsverwaltung — AHA Appup"
 }

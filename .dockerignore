@@ -1,0 +1,7 @@
+.git
+.env
+database/database.sqlite
+ahaappup (1).sql
+*.sql
+node_modules
+.DS_Store
